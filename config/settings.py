@@ -1,14 +1,34 @@
 from pathlib import Path
 import os
 
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# 開発用の適当なキー（本番は env で）
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "dev-secret-key")
+DEBUG = os.environ.get("DJANGO_DEBUG", "1") == "1"
 
-DEBUG = os.environ.get("DJANGO_DEBUG", "0") == "1"
+# ALLOWED_HOSTS
+if DEBUG:
+    ALLOWED_HOSTS = ["*"]
+else:
+    hosts = os.environ.get("DJANGO_ALLOWED_HOSTS", "")
+    ALLOWED_HOSTS = [h for h in hosts.split(",") if h]
 
-ALLOWED_HOSTS = ["*"]
+# CORS
+if DEBUG:
+    CORS_ALLOW_ALL_ORIGINS = True
+    CORS_ALLOWED_ORIGINS = []
+else:
+    origins = os.environ.get("CORS_ALLOWED_ORIGINS", "")
+    CORS_ALLOW_ALL_ORIGINS = False
+    CORS_ALLOWED_ORIGINS = [o for o in origins.split(",") if o]
+
+# CSRF
+csrf_origins = os.environ.get("CSRF_TRUSTED_ORIGINS", "")
+CSRF_TRUSTED_ORIGINS = [o for o in csrf_origins.split(",") if o]
+
+
+
 
 INSTALLED_APPS = [
     "django.contrib.admin",
