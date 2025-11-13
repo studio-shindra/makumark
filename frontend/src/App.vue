@@ -4,11 +4,20 @@ import { useRoute, useRouter } from "vue-router";
 import Sidebar from "@/components/Sidebar.vue";
 import FooterNav from "@/components/FooterNav.vue";
 import { showFooterBanner } from "@/admob";
+import { LocalNotifications } from "@capacitor/local-notifications";
+import { Capacitor } from "@capacitor/core";
 
 const route = useRoute();
 const router = useRouter();
-
 const isSidebarOpen = ref(false);
+
+async function ensureNotificationPermission() {
+  if (!Capacitor.isNativePlatform()) return;
+  const perm = await LocalNotifications.checkPermissions();
+  if (perm.display !== "granted") {
+    await LocalNotifications.requestPermissions();
+  }
+}
 
 function go(name) {
   if (route.name !== name) {
@@ -20,11 +29,12 @@ function openSidebar() {
   isSidebarOpen.value = true;
 }
 
-onMounted(() => {
-  // ブラウザでは何もしない。ネイティブのときだけバナー要求。
-  showFooterBanner();
+onMounted(async () => {
+  await ensureNotificationPermission();
+  showFooterBanner(); // ネイティブのときだけ中で動くようにしてあるやつ
 });
 </script>
+
 
 <template>
   <div class="bg-light min-vh-100 d-flex flex-column">
