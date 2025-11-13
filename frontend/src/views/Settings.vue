@@ -1,5 +1,6 @@
 <script setup>
 import { ref, onMounted } from "vue";
+import { scheduleDailyNotification, showTestNotification } from "@/notifications";
 
 const hour = ref(9);
 const minute = ref(0);
@@ -12,6 +13,7 @@ onMounted(() => {
   if (h !== null) hour.value = Number(h);
   if (m !== null) minute.value = Number(m);
 });
+
 
 function saveTime() {
   const h = Math.min(23, Math.max(0, Number(hour.value) || 0));
@@ -26,9 +28,11 @@ function saveTime() {
     .toString()
     .padStart(2, "0")} に保存しました。`;
 
-  // 将来ここで Capacitor の LocalNotifications を呼んで
-  // 再スケジュールする。
+  // ★ 通知を再スケジュール
+  scheduleDailyNotification();
 }
+
+
 </script>
 
 <template>
@@ -41,8 +45,7 @@ function saveTime() {
     <section class="mb-4">
       <h3 class="h6">通知時刻</h3>
       <p class="small text-muted">
-        「今日の一行」の通知を受け取りたい時間を設定します。
-        （24時間表記）
+        「今日の一行」の通知を受け取りたい時間を設定します。（24時間表記）
       </p>
 
       <div class="d-flex align-items-center gap-2 mb-2">
@@ -64,9 +67,18 @@ function saveTime() {
           max="59"
         />
       </div>
-      <button type="button" class="btn btn-primary btn-sm" @click="saveTime">
-        保存
-      </button>
+      <div class="d-flex gap-2">
+        <button type="button" class="btn btn-primary btn-sm" @click="saveTime">
+          保存
+        </button>
+        <button
+          type="button"
+          class="btn btn-outline-secondary btn-sm"
+          @click="showTestNotification"
+        >
+          テスト通知
+        </button>
+      </div>
 
       <p v-if="message" class="mt-2 small text-success">
         {{ message }}

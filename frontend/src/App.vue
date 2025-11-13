@@ -1,8 +1,9 @@
 <script setup>
-import { ref } from "vue";
+import { ref, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import Sidebar from "@/components/Sidebar.vue";
 import FooterNav from "@/components/FooterNav.vue";
+import { showFooterBanner } from "@/admob";
 
 const route = useRoute();
 const router = useRouter();
@@ -18,6 +19,11 @@ function go(name) {
 function openSidebar() {
   isSidebarOpen.value = true;
 }
+
+onMounted(() => {
+  // ブラウザでは何もしない。ネイティブのときだけバナー要求。
+  showFooterBanner();
+});
 </script>
 
 <template>
