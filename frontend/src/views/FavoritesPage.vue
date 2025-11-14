@@ -116,8 +116,10 @@ onMounted(() => {
             <p class="fw-semibold mb-2">
               「{{ q.text }}」
             </p>
-            <p class="mb-1 text-muted" v-if="q.author">
-              — {{ q.author }}
+            <p class="mb-1 text-muted" v-if="q.author_name || q.source">
+              <span v-if="q.author_name">{{ q.author_name }}</span>
+              <span v-if="q.author_name && q.source"> / </span>
+              <span v-if="q.source">{{ q.source }}</span>
             </p>
             <p class="mb-0 small text-secondary d-flex justify-content-between">
               <span>配信日: {{ q.publish_date }}</span>

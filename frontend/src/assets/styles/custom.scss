@@ -1,0 +1,94 @@
+@use "parts/fonts.scss";
+@use "parts/ios.scss" as ios;
+
+
+body{
+	font-family: "Helvetica Neue", "Helvetica", "Hiragino Sans", "Arial", "Yu Gothic", "Meiryo", sans-serif;
+	// 背景画像の上に白いオーバーレイを重ねて明るくする
+	background-image: 
+		linear-gradient(rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.7)),
+		url(../images/bg.webp);
+	background-size: cover;
+	background-repeat: no-repeat;
+	background-position: center;
+	// iOSセーフゾーン対応（全デバイスにも適切な値が適用される）
+	@include ios.safe-area-padding;
+}
+
+nav{
+	font-family: 'montserrat';
+}
+
+.df-center{
+  display: flex !important;
+  align-items: center!important;
+  justify-content: center!important;
+}
+
+.share-area{
+  min-height: 100vw;
+  width: 100%;
+  aspect-ratio: 1/1;
+}
+
+.main-page{
+  grid-template-rows: 80px 1fr 140px;
+}
+
+.share-button-area{
+    bottom: 80px;
+  .area{
+    border-radius: 100px;
+  }
+}
+
+.author{
+  &::before{
+    content: '';
+    width:40px;
+    height: 1px;
+    background-color: rgb(71, 71, 71);
+    gap: 16px;
+  }
+}
+.main-text-area{
+  grid-template-rows:1fr 80px;
+  .main-text{
+    writing-mode: vertical-rl;
+    overflow-x: auto;
+    font-family: "Times New Roman", "YuMincho", "Hiragino Mincho ProN", "Yu Mincho", "MS PMincho", serif;
+  }
+}
+
+
+.vertical {
+  writing-mode: vertical-rl;
+}
+
+.share-area-hidden {
+	position: absolute;
+	left: -9999px; top: -9999px;
+	padding: 40px;
+	width: 800px;
+	height: 800px;
+	font-family: "Times New Roman", "YuMincho", "Hiragino Mincho ProN", "Yu Mincho", "MS PMincho", serif;
+	white-space: pre-wrap;
+  	font-size: 38px;
+  	line-height: 1.6;
+	aspect-ratio: 1/1;
+}
+
+.main-text-horizontal {
+
+}
+
+.share-author{
+	font-size: 16px;
+	margin-top: 16px;
+}
+
+.share-icon{
+	.text{
+		font-family: "montserrat";
+	}
+}

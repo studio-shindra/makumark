@@ -1,0 +1,28 @@
+// iOSセーフゾーン対応
+// env()関数でセーフゾーンの値を取得
+// フォールバック値として全デバイス用の適切な値を設定
+
+@mixin safe-area-padding {
+  // iOS優先: セーフゾーンの値を使用
+  // フォールバック: 全デバイス用の適切な値（16px）
+  padding-top: env(safe-area-inset-top, 16px);
+  padding-right: env(safe-area-inset-right, 16px);
+  padding-bottom: env(safe-area-inset-bottom, 16px);
+  padding-left: env(safe-area-inset-left, 16px);
+}
+
+@mixin safe-area-inset-top {
+  padding-top: env(safe-area-inset-top, 16px);
+}
+
+@mixin safe-area-inset-right {
+  padding-right: env(safe-area-inset-right, 16px);
+}
+
+@mixin safe-area-inset-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 16px);
+}
+
+@mixin safe-area-inset-left {
+  padding-left: env(safe-area-inset-left, 16px);
+}

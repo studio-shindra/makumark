@@ -37,19 +37,19 @@ onMounted(async () => {
 
 
 <template>
-  <div class="bg-light min-vh-100 d-flex flex-column">
+  <div class="min-vh-100 d-flex flex-column">
     <div class="flex-grow-1">
       <RouterView />
     </div>
 
     <!-- フッターメニュー（コンポーネント化） -->
-    <FooterNav
+    <!-- <FooterNav
       :current-route-name="route.name"
       @go="go"
       @openSidebar="openSidebar"
-    />
+    /> -->
 
     <!-- サイドバー -->
-    <Sidebar v-model="isSidebarOpen" />
+    <!-- <Sidebar v-model="isSidebarOpen" /> -->
   </div>
 </template>

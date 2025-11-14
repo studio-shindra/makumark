@@ -12,10 +12,27 @@ class Quote(models.Model):
     ]
 
     text = models.TextField(verbose_name="台詞本文")
-    author = models.CharField(
+    original_text = models.TextField(
+        blank=True,
+        verbose_name="原文の台詞",
+    )
+    author_name = models.CharField(
         max_length=100,
         blank=True,
-        verbose_name="作者名・出典",
+        verbose_name="作者名",
+        help_text="例: シェイクスピア、太宰治",
+    )
+    source = models.CharField(
+        max_length=200,
+        blank=True,
+        verbose_name="出典",
+        help_text="例: ハムレット、人間失格",
+    )
+    original_source = models.CharField(
+        max_length=200,
+        blank=True,
+        verbose_name="原題",
+        help_text="例: Hamlet, Cyrano de Bergerac",
     )
     category = models.CharField(
         max_length=20,
@@ -43,6 +60,12 @@ class Quote(models.Model):
         blank=True,
         verbose_name="Amazonキー（ASIN or 検索キーワード）",
         help_text="ASIN or 検索用キーワード。空ならリンク無し",
+    )
+    wiki_key = models.CharField(
+        max_length=200,
+        blank=True,
+        verbose_name="Wiki検索キーワード",
+        help_text="Wikipedia検索用キーワード。空ならリンク無し",
     )
     bg_image_url = models.URLField(
         blank=True,

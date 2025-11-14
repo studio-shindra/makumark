@@ -1,7 +1,10 @@
 from pathlib import Path
 import os
 import dj_database_url
+from dotenv import load_dotenv
 
+# .envファイルを読み込む
+load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -41,6 +44,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "corsheaders",
     "rest_framework",
+    "import_export",
     "quotes",
 ]
 
@@ -89,7 +93,8 @@ DATABASES = {
 }
 
 # Heroku など DATABASE_URL がある環境ではそっちで上書き
-if "DATABASE_URL" in os.environ:
+# ただし、DEBUGモード（ローカル開発）の場合はローカルDBを優先
+if "DATABASE_URL" in os.environ and not DEBUG:
     DATABASES["default"] = dj_database_url.config(
         conn_max_age=600,
         ssl_require=True,

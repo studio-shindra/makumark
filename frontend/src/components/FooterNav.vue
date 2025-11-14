@@ -17,7 +17,7 @@ function onOpenSidebar() {
 </script>
 
 <template>
-  <footer class="border-top bg-white">
+  <footer class="position-fixed bottom-0 start-0 w-100">
     <div class="container py-2">
       <div class="d-flex justify-content-around">
         <button

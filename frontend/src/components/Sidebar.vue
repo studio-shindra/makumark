@@ -21,16 +21,21 @@ function goTo(name) {
 
 <template>
   <!-- 背景の黒いオーバーレイ -->
-  <div
-    v-if="modelValue"
-    class="position-fixed top-0 start-0 w-100 h-100"
-    style="background: rgba(0, 0, 0, 0.4); z-index: 1050;"
-    @click.self="close"
-  >
-    <!-- サイドバー本体（右側からスライドイン） -->
+  <Transition name="fade">
     <div
-      class="bg-white h-100 shadow d-flex flex-column"
-      style="width: 260px; margin-left: auto; padding: 1rem;"
+      v-if="modelValue"
+      class="position-fixed top-0 start-0 w-100 h-100"
+      style="background: rgba(0, 0, 0, 0.4); z-index: 1050;"
+      @click.self="close"
+    ></div>
+  </Transition>
+  
+  <!-- サイドバー本体（右側からスライドイン） -->
+  <Transition name="slide-right">
+    <div
+      v-if="modelValue"
+      class="position-fixed top-0 end-0 h-100 bg-white shadow d-flex flex-column"
+      style="width: 260px; padding: 1rem; z-index: 1051;"
     >
       <div class="d-flex justify-content-between align-items-center mb-3">
         <h2 class="h6 mb-0">メニュー</h2>
@@ -45,11 +50,41 @@ function goTo(name) {
           class="btn btn-light text-start"
           @click="goTo('settings')"
         >
-          ⚙ 設定
+          設定
         </button>
         <!-- 将来ここに他メニューを足せる -->
         <!-- <button type="button" class="btn btn-light text-start">お問い合わせ</button> -->
       </nav>
     </div>
-  </div>
+  </Transition>
 </template>
+
+<style scoped>
+/* フェードインアニメーション（背景） */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.25s cubic-bezier(0.2, 0, 0, 1);
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+/* 右からスライドインアニメーション（サイドバー本体） */
+.slide-right-enter-active {
+  transition: transform 0.35s cubic-bezier(0.2, 0, 0, 1);
+}
+
+.slide-right-leave-active {
+  transition: transform 0.3s cubic-bezier(0.2, 0, 0, 1);
+}
+
+.slide-right-enter-from {
+  transform: translateX(100%);
+}
+
+.slide-right-leave-to {
+  transform: translateX(100%);
+}
+</style>
