@@ -1,9 +1,7 @@
 <script setup>
 import { ref, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import Sidebar from "@/components/Sidebar.vue";
-import FooterNav from "@/components/FooterNav.vue";
-import { showFooterBanner } from "@/admob";
+import { showFooterBanner, showPastQuoteInterstitial } from "@/admob";
 import { LocalNotifications } from "@capacitor/local-notifications";
 import { Capacitor } from "@capacitor/core";
 
@@ -37,7 +35,7 @@ onMounted(async () => {
 
 
 <template>
-  <div class="min-vh-100 d-flex flex-column">
+  <div class="h-100 d-flex flex-column">
     <div class="flex-grow-1">
       <RouterView />
     </div>

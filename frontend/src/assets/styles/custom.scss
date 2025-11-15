@@ -2,6 +2,14 @@
 @use "parts/ios.scss" as ios;
 
 
+html, body {
+	height: 100vh;
+	height: 100dvh; // 動的ビューポート高さ（モバイルブラウザ対応）
+	overflow: hidden; // スクロールを防ぐ
+	margin: 0;
+	padding: 0;
+}
+
 body{
 	font-family: "Helvetica Neue", "Helvetica", "Hiragino Sans", "Arial", "Yu Gothic", "Meiryo", sans-serif;
 	// 背景画像の上に白いオーバーレイを重ねて明るくする
@@ -11,8 +19,7 @@ body{
 	background-size: cover;
 	background-repeat: no-repeat;
 	background-position: center;
-	// iOSセーフゾーン対応（全デバイスにも適切な値が適用される）
-	@include ios.safe-area-padding;
+	// セーフエリアのpaddingはbodyではなく、必要な要素に個別に適用
 }
 
 nav{
@@ -25,20 +32,57 @@ nav{
   justify-content: center!important;
 }
 
-.share-area{
-  min-height: 100vw;
-  width: 100%;
-  aspect-ratio: 1/1;
-}
 
 .main-page{
+  height: 100vh;
+  height: 100dvh; // 動的ビューポート高さ（モバイルブラウザ対応）
   grid-template-rows: 80px 1fr 140px;
+  overflow: hidden; // スクロールを防ぐ
+}
+
+.header {
+  // セーフエリアのpadding-topを適用（iOSのステータスバー/ノッチの下に配置）
+  @include ios.safe-area-inset-top;
+  // 左右のセーフエリアも適用（必要に応じて）
+  @include ios.safe-area-inset-left;
+  @include ios.safe-area-inset-right;
+}
+
+.footer {
+  // セーフエリアのpadding-bottomを適用（iOSのホームインジケーターの上に配置）
+  @include ios.safe-area-inset-bottom;
+  // 左右のセーフエリアも適用（必要に応じて）
+  @include ios.safe-area-inset-left;
+  @include ios.safe-area-inset-right;
 }
 
 .share-button-area{
     bottom: 80px;
   .area{
     border-radius: 100px;
+    
+    // ボタンのアクティブ状態（クリック後の反転）を無効化
+    .btn {
+      &:active,
+      &:focus,
+      &:focus-visible {
+        outline: none !important;
+        box-shadow: none !important;
+        background-color: transparent !important;
+        border-color: transparent !important;
+      }
+      
+      // btn-outline-secondaryのアクティブ状態も無効化
+      &.btn-outline-secondary {
+        &:active,
+        &:focus,
+        &:focus-visible {
+          background-color: transparent !important;
+          border-color: transparent !important;
+          color: inherit !important;
+        }
+      }
+    }
   }
 }
 
@@ -51,36 +95,31 @@ nav{
     gap: 16px;
   }
 }
-.main-text-area{
-  grid-template-rows:1fr 80px;
-  .main-text{
-    writing-mode: vertical-rl;
-    overflow-x: auto;
-    font-family: "Times New Roman", "YuMincho", "Hiragino Mincho ProN", "Yu Mincho", "MS PMincho", serif;
+.share-area{
+  .main-text-area{
+      height: calc(100vh - 80px - 140px);
+      display: flex;
+      flex-direction: column;
+    .main-text{
+      writing-mode: vertical-rl;
+      /* 縦書きでの折返し・はみ出し対策 */
+      text-orientation: upright;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+      overflow: auto;
+      font-family: "Times New Roman", "YuMincho", "Hiragino Mincho ProN", "Yu Mincho", "MS PMincho", serif;
+      width: 100%;
+    }
   }
 }
+
 
 
 .vertical {
   writing-mode: vertical-rl;
 }
 
-.share-area-hidden {
-	position: absolute;
-	left: -9999px; top: -9999px;
-	padding: 40px;
-	width: 800px;
-	height: 800px;
-	font-family: "Times New Roman", "YuMincho", "Hiragino Mincho ProN", "Yu Mincho", "MS PMincho", serif;
-	white-space: pre-wrap;
-  	font-size: 38px;
-  	line-height: 1.6;
-	aspect-ratio: 1/1;
-}
-
-.main-text-horizontal {
-
-}
 
 .share-author{
 	font-size: 16px;
@@ -91,4 +130,88 @@ nav{
 	.text{
 		font-family: "montserrat";
 	}
+}
+
+// テキストのフェードイン/アウトアニメーション
+.fade-text-enter-active {
+  transition: opacity 0.5s cubic-bezier(0.2, 0, 0, 1);
+}
+
+.fade-text-leave-active {
+  transition: opacity 0.4s cubic-bezier(0.2, 0, 0, 1);
+}
+
+.fade-text-enter-from,
+.fade-text-leave-to {
+  opacity: 0;
+}
+
+// カレンダーボタンのスライドアニメーション
+.day-buttons {
+  position: relative;
+  overflow: hidden;
+  
+  .slide-day-move,
+  .slide-day-enter-active,
+  .slide-day-leave-active {
+    transition: transform 0.6s cubic-bezier(0.2, 0, 0, 1),
+                opacity 0.45s cubic-bezier(0.2, 0, 0, 1);
+  }
+
+  // ボタンの選択表示（丸）がふわっと現れるようにトランジション
+  .btn {
+    transition: background-color 0.36s cubic-bezier(0.2,0,0,1),
+                color 0.36s cubic-bezier(0.2,0,0,1),
+                transform 0.36s cubic-bezier(0.2,0,0,1),
+                box-shadow 0.36s cubic-bezier(0.2,0,0,1),
+                opacity 0.36s cubic-bezier(0.2,0,0,1);
+  }
+
+  .btn-dark {
+    box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+  }
+  
+  .slide-day-enter-from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  
+  .slide-day-leave-to {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  
+  .slide-day-leave-active {
+    position: absolute;
+  }
+}
+
+.share-canvas  {
+  display: none;
+  width: 600px;
+  height: 100%;
+  min-height: 400px;
+  padding: 40px;
+  .share-area{
+    height: 100%;
+    width: 100%;
+    .main-text{
+      display: flex;
+      align-items: end;
+      justify-content: center;
+      flex-direction: column;
+      writing-mode: unset;
+      font-family: "Times New Roman", "YuMincho", "Hiragino Mincho ProN", "Yu Mincho", "MS PMincho", serif;
+    }
+    .share-author{
+      display: flex;
+      justify-content: center;
+      align-items: end;
+      flex-direction: column;
+      width: 100%;
+      .name{
+
+      }
+    }
+  }
 }

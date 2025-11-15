@@ -1,0 +1,8 @@
+// Bootstrap color overrides
+// ここで Bootstrap の変数を上書きしてから SCSS を読み込みます
+$primary: #172646;
+
+// 必要に応じて他の色もここで上書きできます
+// $secondary: #...;
+
+@import "bootstrap/scss/bootstrap";

@@ -1,11 +1,11 @@
 <script setup>
 import { useRouter } from "vue-router";
-
+import { IconX } from "@tabler/icons-vue";
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
 });
 
-const emit = defineEmits(["update:modelValue"]);
+const emit = defineEmits(["update:modelValue", "openFavorites", "openSettings"]);
 
 const router = useRouter();
 
@@ -35,25 +35,32 @@ function goTo(name) {
     <div
       v-if="modelValue"
       class="position-fixed top-0 end-0 h-100 bg-white shadow d-flex flex-column"
-      style="width: 260px; padding: 1rem; z-index: 1051;"
+      style="width: 80vw; padding: 1rem; z-index: 1051;"
     >
-      <div class="d-flex justify-content-between align-items-center mb-3">
-        <h2 class="h6 mb-0">メニュー</h2>
-        <button class="btn btn-sm btn-outline-secondary" type="button" @click="close">
-          閉じる
+      <div class="d-flex justify-content-end align-items-center mb-3">
+        <button class="btn btn-sm btn-outline-secondary border-0" type="button" @click="close">
+          <IconX />
         </button>
       </div>
 
       <nav class="d-flex flex-column gap-2">
+        <!-- ❤️ お気に入り -->
         <button
           type="button"
           class="btn btn-light text-start"
-          @click="goTo('settings')"
+          @click="emit('openFavorites')"
+        >
+          お気に入り
+        </button>
+
+        <!-- 設定（モーダルで開く） -->
+        <button
+          type="button"
+          class="btn btn-light text-start"
+          @click="() => { close(); emit('openSettings'); }"
         >
           設定
         </button>
-        <!-- 将来ここに他メニューを足せる -->
-        <!-- <button type="button" class="btn btn-light text-start">お問い合わせ</button> -->
       </nav>
     </div>
   </Transition>

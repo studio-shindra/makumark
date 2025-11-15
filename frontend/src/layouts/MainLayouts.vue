@@ -1,5 +1,86 @@
+<script setup>
+import { ref } from "vue";
+import { useRouter } from "vue-router";
+import dayjs from "dayjs";
+import BaseModal from "@/components/BaseModal.vue";
+import FavoriteList from "@/components/FavoriteList.vue";
+import Sidebar from "@/components/Sidebar.vue";
+import { fetchFavorites } from "@/api";
+import { showPastQuoteInterstitial } from "@/admob";
+import Settings from '@/views/Settings.vue';
+
+const isFavoriteOpen = ref(false);
+const favorites = ref([]);
+const router = useRouter();
+
+const isSidebarOpen = ref(false);
+const isSettingsOpen = ref(false);
+
+const todayStr = dayjs().format("YYYY-MM-DD");
+
+async function openFavorites() {
+  // サイドバーを閉じる
+  isSidebarOpen.value = false;
+  
+  // モーダルを開く前に、今日の日付にリセット（カレンダーと表示を今日にする）
+  router.push({ name: "home", query: { date: todayStr } });
+  
+  // お気に入りデータを取得
+  favorites.value = await fetchFavorites();
+  
+  // サイドバーのアニメーションが終わってからモーダルを開く（少し遅延）
+  setTimeout(() => {
+    isFavoriteOpen.value = true;
+  }, 500); // サイドバーのアニメーション時間（0.3s）に合わせる
+}
+
+function openSettings() {
+  // サイドバーを閉じる
+  isSidebarOpen.value = false;
+
+  // サイドバーのアニメーションが終わってからモーダルを開く
+  setTimeout(() => {
+    isSettingsOpen.value = true;
+  }, 350);
+}
+
+async function jumpToDate(dateStr) {
+  // 1. アラートを先に出す（過去の日付の場合）
+  if (dateStr !== todayStr) {
+    const ok = window.confirm(
+      "過去の台詞を見るには広告（いまはダミー）が表示されます。続けますか？"
+    );
+    if (!ok) return;
+    
+    // ネイティブ環境ならここでインタースティシャル表示
+    await showPastQuoteInterstitial();
+  }
+  
+  // 2. モーダルを閉じる
+  isFavoriteOpen.value = false;
+  
+  // 3. MainPageにアニメーション付きで遷移するよう通知
+  // emitでMainPageに通知（少し遅延して、モーダルのアニメーションが始まってから）
+  setTimeout(() => {
+    // MainPageのjumpToDateWithAnimationを呼び出す
+    // でも、MainPageは子コンポーネントなので、ref経由でアクセスする必要がある
+    // 一旦、直接router.pushして、MainPageでwatchしてアニメーションを制御する
+    router.push({ name: "home", query: { date: dateStr, animate: "true" } });
+  }, 100);
+}
+
+function openSidebar() {
+  isSidebarOpen.value = true;
+}
+
+// 親コンポーネントからopenSidebarを呼び出せるように公開
+defineExpose({
+  openSidebar,
+});
+</script>
+
 <template>
-  <div class="main-page d-grid min-vh-100 w-100 position-relative">
+  <div class="main-page d-grid w-100 position-relative">
     <header class="header d-flex">
       <slot name="header"></slot>
     </header>
@@ -11,5 +92,22 @@
     <footer class="footer d-flex">
       <slot name="footer"></slot>
     </footer>
+
+    <!-- サイドバー（各ページ共通） -->
+    <Sidebar
+      v-model="isSidebarOpen"
+      @openFavorites="openFavorites"
+      @openSettings="openSettings"
+    />
+
+    <!-- お気に入りモーダル -->
+    <BaseModal v-model="isFavoriteOpen">
+      <FavoriteList :items="favorites" @select="jumpToDate" />
+    </BaseModal>
+
+    <!-- 設定モーダル -->
+    <BaseModal v-model="isSettingsOpen">
+      <Settings />
+    </BaseModal>
   </div>
 </template>
