@@ -4,15 +4,34 @@ import {
   BannerAdSize,
   BannerAdPosition,
 } from "@capacitor-community/admob";
+import { isPremium } from "@/stores/user";
 
 const bannerId = import.meta.env.VITE_ADMOB_BANNER_ID;
-const interstitialId = import.meta.env.VITE_ADMOB_INTERSTITIAL_ID; // ← 追加
+const interstitialId = import.meta.env.VITE_ADMOB_INTERSTITIAL_ID;
 
 function canUseAdMob() {
+  // プレミアムなら広告を表示しない
+  if (isPremium.value) {
+    console.log('✨ プレミアム会員: 広告をスキップ');
+    return false;
+  }
   return Capacitor.isNativePlatform() && !!bannerId;
 }
+
 function canUseInterstitial() {
-  return Capacitor.isNativePlatform() && !!interstitialId;
+  // プレミアムなら広告を表示しない
+  if (isPremium.value) {
+    console.log('✨ プレミアム会員: インタースティシャル広告をスキップ');
+    return false;
+  }
+  
+  if (!Capacitor.isNativePlatform()) return false;
+  if (!interstitialId) return false;
+  if (!interstitialId.includes("/")) {
+    console.warn("AdMob interstitial id looks invalid (expected ad unit id with '/'). Current value:", interstitialId);
+    return false;
+  }
+  return true;
 }
 
 let initialized = false;
@@ -44,13 +63,22 @@ export async function showFooterBanner() {
   }
 }
 
-// ★ 過去の一行を見るとき用の全画面広告
+export async function hideBanner() {
+  if (!Capacitor.isNativePlatform()) return;
+  
+  try {
+    await AdMob.hideBanner();
+    console.log('✨ バナー広告を非表示にしました');
+  } catch (e) {
+    console.warn("AdMob hide banner failed", e);
+  }
+}
+
 export async function showPastQuoteInterstitial() {
   if (!canUseInterstitial()) return;
 
   try {
     await initAdMob();
-    // インタースティシャル広告を準備して表示
     await AdMob.prepareInterstitial({
       adId: interstitialId,
     });

@@ -4,6 +4,7 @@ import { useRoute, useRouter } from "vue-router";
 import { showFooterBanner, showPastQuoteInterstitial } from "@/admob";
 import { LocalNotifications } from "@capacitor/local-notifications";
 import { Capacitor } from "@capacitor/core";
+import { restoreAuth } from "@/stores/user";
 
 const route = useRoute();
 const router = useRouter();
@@ -28,6 +29,9 @@ function openSidebar() {
 }
 
 onMounted(async () => {
+  // 認証状態を復元
+  await restoreAuth();
+  
   await ensureNotificationPermission();
   showFooterBanner(); // ネイティブのときだけ中で動くようにしてあるやつ
 });

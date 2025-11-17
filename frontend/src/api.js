@@ -18,46 +18,67 @@ export function getClientId() {
   return id;
 }
 
+// 認証 Token を取得
+function getAuthToken() {
+  return localStorage.getItem("auth_token");
+}
+
+// axios インスタンスに認証ヘッダーを動的に追加
 const api = axios.create({
   baseURL: `${API_BASE}/api`,
   timeout: 10000,
 });
 
+// リクエストインターセプター: Token があれば自動的に Authorization ヘッダーを追加
+api.interceptors.request.use((config) => {
+  const token = getAuthToken();
+  if (token) {
+    config.headers.Authorization = `Token ${token}`;
+  }
+  return config;
+});
+
 // 今日の1本を取得
 export async function fetchTodayQuote() {
-  const clientId = getClientId();
-  const res = await api.get("/quotes/today/", {
-    params: { client_id: clientId },
-  });
+  const params = {};
+  // Token がない場合のみ client_id を送る
+  if (!getAuthToken()) {
+    params.client_id = getClientId();
+  }
+  const res = await api.get("/quotes/today/", { params });
   return res.data;
-}	
-
+}
 
 // いいねトグル
 export async function toggleFavorite(quoteId) {
-  const clientId = getClientId();
-  const res = await api.post(`/quotes/${quoteId}/toggle-favorite/`, {
-    client_id: clientId,
-  });
+  const data = {};
+  // Token がない場合のみ client_id を送る
+  if (!getAuthToken()) {
+    data.client_id = getClientId();
+  }
+  const res = await api.post(`/quotes/${quoteId}/toggle-favorite/`, data);
   return res.data; // { liked: true/false, like_count: N }
 }
 
-
 // 指定日付の台詞を取得
 export async function fetchQuoteByDate(dateStr) {
-  const clientId = getClientId();
-  const res = await api.get("/quotes/by-date/", {
-    params: { date: dateStr, client_id: clientId },
-  });
+  const params = { date: dateStr };
+  // Token がない場合のみ client_id を送る
+  if (!getAuthToken()) {
+    params.client_id = getClientId();
+  }
+  const res = await api.get("/quotes/by-date/", { params });
   return res.data;
 }
 
 // いいね一覧を取得
 export async function fetchFavorites() {
-  const clientId = getClientId();
-  const res = await api.get("/quotes/favorites/", {
-    params: { client_id: clientId },
-  });
+  const params = {};
+  // Token がない場合のみ client_id を送る
+  if (!getAuthToken()) {
+    params.client_id = getClientId();
+  }
+  const res = await api.get("/quotes/favorites/", { params });
   return res.data; // [Quote...]
 }
 

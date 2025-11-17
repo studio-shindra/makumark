@@ -1,5 +1,29 @@
 from rest_framework import serializers
-from .models import Quote
+from .models import Quote, User
+
+
+class UserSerializer(serializers.ModelSerializer):
+    """
+    User モデルのシリアライザー。is_premium を含む。
+    """
+    class Meta:
+        model = User
+        fields = [
+            "id",
+            "username",
+            "email",
+            "apple_id",
+            "is_premium",
+            "premium_expires_at",
+        ]
+        read_only_fields = [
+            "id",
+            "username",
+            "email",
+            "apple_id",
+            "is_premium",
+            "premium_expires_at",
+        ]
 
 
 class QuoteSerializer(serializers.ModelSerializer):

@@ -35,7 +35,7 @@ function goTo(name) {
     <div
       v-if="modelValue"
       class="position-fixed top-0 end-0 h-100 bg-white shadow d-flex flex-column"
-      style="width: 80vw; padding: 1rem; z-index: 1051;"
+      style="width: 80vw; padding: 1rem; padding-top: calc(1rem + env(safe-area-inset-top, 0px)); z-index: 1051;"
     >
       <div class="d-flex justify-content-end align-items-center mb-3">
         <button class="btn btn-sm btn-outline-secondary border-0" type="button" @click="close">

@@ -149,7 +149,8 @@ nav{
 // カレンダーボタンのスライドアニメーション
 .day-buttons {
   position: relative;
-  overflow: hidden;
+  overflow: auto;
+  pointer-events: auto;
   
   .slide-day-move,
   .slide-day-enter-active,
@@ -165,6 +166,12 @@ nav{
                 transform 0.36s cubic-bezier(0.2,0,0,1),
                 box-shadow 0.36s cubic-bezier(0.2,0,0,1),
                 opacity 0.36s cubic-bezier(0.2,0,0,1);
+    /* iOS タッチ対応 */
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    cursor: pointer;
   }
 
   .btn-dark {
@@ -187,7 +194,8 @@ nav{
 }
 
 .share-canvas  {
-  display: none;
+  position: absolute;
+  left: -9999px;
   width: 600px;
   height: 100%;
   min-height: 400px;
@@ -209,9 +217,6 @@ nav{
       align-items: end;
       flex-direction: column;
       width: 100%;
-      .name{
-
-      }
     }
   }
 }

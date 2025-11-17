@@ -1,4 +1,35 @@
 from django.db import models
+from django.contrib.auth.models import AbstractUser
+
+
+class User(AbstractUser):
+    """
+    拡張 User モデル。Apple Sign-In 対応、is_premium と premium_expires_at を追加。
+    """
+    apple_id = models.CharField(
+        max_length=255,
+        unique=True,
+        null=True,
+        blank=True,
+        verbose_name="Apple ID",
+        help_text="Apple Sign-In で取得した user identifier",
+    )
+    is_premium = models.BooleanField(
+        default=False,
+        verbose_name="プレミアム購読中",
+    )
+    premium_expires_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="プレミアム有効期限",
+    )
+
+    class Meta:
+        verbose_name = "ユーザー"
+        verbose_name_plural = "ユーザー"
+
+    def __str__(self) -> str:
+        return self.username or self.apple_id or f"User {self.id}"
 
 
 class Quote(models.Model):
@@ -88,10 +119,18 @@ class Quote(models.Model):
 class Favorite(models.Model):
     """
     いいね情報。
-    ログインユーザーではなく「クライアントID（端末 or アプリ内UUID）」で紐づける。
-    frontend 側でランダムに UUID を作り、ずっと使い回す想定。
+    User に紐づけて複数デバイスで同期。
+    移行期間のため client_id も残す（後方互換）。
     """
 
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="favorites",
+        verbose_name="ユーザー",
+        null=True,
+        blank=True,
+    )
     quote = models.ForeignKey(
         Quote,
         on_delete=models.CASCADE,
@@ -102,14 +141,18 @@ class Favorite(models.Model):
         max_length=64,
         verbose_name="クライアントID（端末UUIDなど）",
         db_index=True,
+        null=True,
+        blank=True,
     )
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="作成日時")
 
     class Meta:
-        unique_together = ("quote", "client_id")
         indexes = [
+            models.Index(fields=["user"]),
             models.Index(fields=["client_id"]),
         ]
 
     def __str__(self) -> str:
+        if self.user:
+            return f"{self.user.username} ❤ {self.quote_id}"
         return f"{self.client_id} ❤ {self.quote_id}"

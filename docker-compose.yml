@@ -14,7 +14,7 @@ services:
   web:
     build: .
     container_name: makumark-web
-    command: bash -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
+    command: bash -c "sleep 5 && python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
     working_dir: /code
     volumes:
       - .:/code

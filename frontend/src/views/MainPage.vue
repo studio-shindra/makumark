@@ -5,6 +5,7 @@ import { useRoute } from "vue-router";
 import dayjs from "dayjs";
 import { fetchTodayQuote, fetchQuoteByDate, toggleFavorite, fetchWikipediaSummary } from "@/api";
 import WikiModal from '@/components/WikiModal.vue';
+import { Share } from '@capacitor/share';
 import { IconHeart, IconHeartFilled, IconBrandAmazon, IconShare2, IconMenuDeep, IconBrandWikipedia } from "@tabler/icons-vue";
 import html2canvas from "html2canvas";
 import MainLayouts from "@/layouts/MainLayouts.vue";
@@ -53,6 +54,18 @@ const wikiLoading = ref(false);
 const wikiError = ref("");
 const wikiSummary = ref(null);
 
+// Amazon affiliate tag（.env に設定されていればそちらを優先）
+const amazonTag = import.meta.env.VITE_AMAZON_TAG || 'shinblog0db-22';
+
+// Amazon 検索 URL を生成（優先順: source（出典） -> author_name -> amazon_key）
+const amazonSearchUrl = computed(() => {
+  if (!quote.value) return null;
+  const q = quote.value.source || quote.value.author_name || quote.value.amazon_key || '';
+  if (!q) return 'https://amzn.to/4r0W82l'; // フォールバックの短縮リンク
+  const encoded = encodeURIComponent(q);
+  return `https://www.amazon.co.jp/s?k=${encoded}&tag=${amazonTag}`;
+});
+
 async function onShareImage() {
   if (!shareAreaHidden.value || !quote.value) return;
 
@@ -65,17 +78,35 @@ async function onShareImage() {
       useCORS: true,
     });
 
-    const dataUrl = canvas.toDataURL("image/png");
-    const link = document.createElement("a");
-    const todayStr = dayjs().format("YYYYMMDD");
-    link.href = dataUrl;
-    link.download = `makumark_${todayStr}.png`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    // Canvas を blob に変換
+    const blob = await new Promise((resolve) => {
+      canvas.toBlob(resolve, "image/png", 0.95);
+    });
+
+    if (!blob) {
+      alert("画像の生成に失敗しました。");
+      return;
+    }
+
+    // Blob を File に変換
+    const file = new File(
+      [blob],
+      `makumark_${dayjs().format("YYYYMMDD_HHmmss")}.png`,
+      { type: "image/png" }
+    );
+
+    // Capacitor Share API で共有シートを表示
+    await Share.share({
+      title: "MakuMark",
+      text: `台詞: ${quote.value.text?.slice(0, 50)}...`,
+      files: [file.name], // ファイルパス
+      dialogTitle: "シェア",
+    });
   } catch (e) {
     console.error("share image error", e);
-    alert("画像の生成に失敗しました。");
+    if (e.message !== "Share canceled") {
+      alert("シェアに失敗しました。");
+    }
   } finally {
     sharing.value = false;
   }
@@ -281,9 +312,9 @@ async function onToggleFavorite() {
   <MainLayouts ref="mainLayoutsRef">
     <template #header>
       <!-- 日付ナビ -->
-      <nav class=" pt-5 flex-fill df-center">
-        <div class="day-buttons" ref="navRef">
-          <TransitionGroup name="slide-day" tag="div" class="d-flex gap-2 align-items-center justify-content-around w-100">
+      <nav class="pt-5 flex-fill df-center" style="pointer-events: auto; position: relative; z-index: 10;">
+        <div class="day-buttons" ref="navRef" style="pointer-events: auto; touch-action: manipulation;">
+          <div class="d-flex gap-2 align-items-center justify-content-around w-100">
             <button
               v-for="d in navDays"
               :key="d.value"
@@ -303,7 +334,7 @@ async function onToggleFavorite() {
             >
               {{ d.label }}
             </button>
-          </TransitionGroup>
+          </div>
         </div>
         <!-- <small class="text-muted d-block mt-1">
           ※ 過去の日付をタップすると広告（いまは確認ダイアログ）が表示されます。
@@ -370,7 +401,23 @@ async function onToggleFavorite() {
               </button>
             </div>
             <div class="amazon-link box d-flex align-items-center">
-              <IconBrandAmazon />
+              <a
+                v-if="amazonSearchUrl"
+                :href="amazonSearchUrl"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="btn p-0"
+              >
+                <IconBrandAmazon />
+              </a>
+              <button
+                v-else
+                class="btn p-0"
+                disabled
+                style="opacity: 0.5; cursor: not-allowed;"
+              >
+                <IconBrandAmazon />
+              </button>
             </div>
             <!-- wikipedia -->
             <div class="wiki">
@@ -412,7 +459,7 @@ async function onToggleFavorite() {
           </div>
               </div>
             <div class="d-flex align-items-center gap-2 mt-3">
-              <img src="/icon.png" style="width:40px;height:40px;" alt="icon" />
+              <img src="/logo-yoko.svg" style="height:40px;" alt="icon" />
               <div class="text">MakuMark</div>
             </div>
           </div>
