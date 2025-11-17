@@ -3,7 +3,7 @@ import { ref, computed, onMounted, watch, TransitionGroup, nextTick } from "vue"
 import { useRouter } from "vue-router";
 import { useRoute } from "vue-router";
 import dayjs from "dayjs";
-import { fetchTodayQuote, fetchQuoteByDate, toggleFavorite, fetchWikipediaSummary } from "@/api";
+import { fetchTodayQuote, fetchQuoteByDate, toggleFavorite, fetchWikipediaSummary, trackQuoteView, trackQuoteClick, trackCampaignView, trackCampaignClick } from "@/api";
 import WikiModal from '@/components/WikiModal.vue';
 import { Share } from '@capacitor/share';
 import { IconHeart, IconHeartFilled, IconBrandAmazon, IconShare2, IconMenuDeep, IconBrandWikipedia, IconBadgeAdOff } from "@tabler/icons-vue";
@@ -57,6 +57,17 @@ const wikiSummary = ref(null);
 // Amazon affiliate tag（.env に設定されていればそちらを優先）
 const amazonTag = import.meta.env.VITE_AMAZON_TAG || 'shinblog0db-22';
 
+// Campaign かどうかを判定
+const isCampaign = computed(() => {
+  return quote.value?.is_campaign || false;
+});
+
+// ボタン表示制御
+const showWikiButton = computed(() => !isCampaign.value);
+const showAmazonButton = computed(() => !isCampaign.value);
+const showOfficialButton = computed(() => isCampaign.value && quote.value?.url);
+const showSNSButton = computed(() => isCampaign.value && quote.value?.sns_url);
+
 // Amazon 検索 URL を生成（優先順: source（出典） -> author_name -> amazon_key）
 const amazonSearchUrl = computed(() => {
   if (!quote.value) return null;
@@ -102,6 +113,13 @@ async function onShareImage() {
       files: [file.name], // ファイルパス
       dialogTitle: "シェア",
     });
+    
+    // トラッキング: シェアを記録
+    if (quote.value.is_campaign) {
+      trackCampaignClick(quote.value.campaign_id, 'share');
+    } else {
+      trackQuoteClick(quote.value.id, 'share');
+    }
   } catch (e) {
     console.error("share image error", e);
     if (e.message !== "Share canceled") {
@@ -130,12 +148,37 @@ async function onOpenWiki() {
       wikiSummary.value = res;
       wikiOpen.value = true;
     }
+    
+    // トラッキング: Wiki表示を記録
+    if (quote.value) {
+      trackQuoteClick(quote.value.id, 'wiki');
+    }
   } catch (e) {
     console.error('wiki error', e);
     wikiError.value = 'Wikipedia の取得に失敗しました。';
   } finally {
     wikiLoading.value = false;
   }
+}
+
+// Amazon リンククリック
+function onClickAmazon() {
+  if (!quote.value) return;
+  trackQuoteClick(quote.value.id, 'amazon');
+}
+
+// Campaign 公式サイトを開く
+function onOpenOfficial() {
+  if (!quote.value || !quote.value.url) return;
+  trackCampaignClick(quote.value.campaign_id, 'official');
+  window.open(quote.value.url, '_blank');
+}
+
+// Campaign SNSを開く
+function onOpenSNS() {
+  if (!quote.value || !quote.value.sns_url) return;
+  trackCampaignClick(quote.value.campaign_id, 'sns');
+  window.open(quote.value.sns_url, '_blank');
 }
 
 // 初回：クエリに date があればそれを優先
@@ -218,6 +261,15 @@ async function loadQuoteFor(dateStr) {
       data = await fetchQuoteByDate(dateStr);
     }
     quote.value = data;
+    
+    // トラッキング: 表示を記録
+    if (data.is_campaign) {
+      // Campaign の表示
+      trackCampaignView(data.campaign_id);
+    } else {
+      // Quote の表示
+      trackQuoteView(data.id);
+    }
   } catch (e) {
     console.error(e);
     if (e?.response?.status === 404) {
@@ -299,7 +351,10 @@ async function onSelectDay(day) {
 async function onToggleFavorite() {
   if (!quote.value) return;
   try {
-    const res = await toggleFavorite(quote.value.id);
+    const isCampaign = quote.value.is_campaign || false;
+    const id = isCampaign ? quote.value.campaign_id : quote.value.id;
+    
+    const res = await toggleFavorite(id, isCampaign);
     quote.value.liked = res.liked;
     quote.value.like_count = res.like_count;
   } catch (e) {
@@ -355,6 +410,8 @@ async function onToggleFavorite() {
         >
           <Transition name="fade-text">
             <div v-if="isTextVisible" class="main-text df-center flex-fill py-3 px-2">
+              <!-- キャンペーンの場合は《SP》ラベルを表示 -->
+              <div v-if="isCampaign" class="badge bg-warning text-dark mb-2">《SP》</div>
               <p class="fs-4">
                 {{ quote?.text }}
               </p>
@@ -363,9 +420,15 @@ async function onToggleFavorite() {
           <div class="author-area">
             <Transition name="fade-text">
               <div v-if="isTextVisible" class="author d-flex align-items-center justify-content-end flex-fill gap-3 me-4">
-                <div class="mb-1 text-muted text-end d-flex align-items-end justify-content-center flex-column" v-if="quote && (quote.author_name || quote.source)">
-                  <template v-if="quote.author_name"><p class="mb-0">{{ quote.author_name }}</p></template>
-                  <template v-if="quote.source"><p class="mb-0">『{{ quote.source }}』</p></template>
+                <div class="mb-1 text-muted text-end d-flex align-items-end justify-content-center flex-column" v-if="quote">
+                  <!-- キャンペーンの場合はclient_nameを表示、通常はauthor_nameとsourceを表示 -->
+                  <template v-if="isCampaign">
+                    <p class="mb-0" v-if="quote.client_name">{{ quote.client_name }}</p>
+                  </template>
+                  <template v-else>
+                    <template v-if="quote.author_name"><p class="mb-0">{{ quote.author_name }}</p></template>
+                    <template v-if="quote.source"><p class="mb-0">『{{ quote.source }}』</p></template>
+                  </template>
                 </div>
               </div>
             </Transition>
@@ -400,13 +463,16 @@ async function onToggleFavorite() {
                 </template>
               </button>
             </div>
-            <div class="amazon-link box d-flex align-items-center">
+            
+            <!-- Amazonボタン（通常の名言の場合のみ表示） -->
+            <div v-if="showAmazonButton" class="amazon-link box d-flex align-items-center">
               <a
                 v-if="amazonSearchUrl"
                 :href="amazonSearchUrl"
                 target="_blank"
                 rel="noopener noreferrer"
                 class="btn p-0"
+                @click="onClickAmazon"
               >
                 <IconBrandAmazon />
               </a>
@@ -419,12 +485,28 @@ async function onToggleFavorite() {
                 <IconBrandAmazon />
               </button>
             </div>
-            <!-- wikipedia -->
-            <div class="wiki">
+            
+            <!-- Wikipediaボタン（通常の名言の場合のみ表示） -->
+            <div v-if="showWikiButton" class="wiki">
               <button class="btn p-0" @click="onOpenWiki" :disabled="wikiLoading || !quote">
                 <IconBrandWikipedia />
               </button>
             </div>
+            
+            <!-- 公式サイトボタン（キャンペーンの場合のみ表示） -->
+            <div v-if="showOfficialButton" class="official">
+              <button class="btn p-0" @click="onOpenOfficial">
+                <IconBrandAmazon />
+              </button>
+            </div>
+            
+            <!-- SNSボタン（キャンペーンの場合のみ表示） -->
+            <div v-if="showSNSButton" class="sns">
+              <button class="btn p-0" @click="onOpenSNS">
+                <IconBrandWikipedia />
+              </button>
+            </div>
+            
             <!-- 画像保存ボタン -->
             <div class="share-link">
               <button

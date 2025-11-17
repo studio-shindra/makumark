@@ -50,8 +50,8 @@ export async function fetchTodayQuote() {
 }
 
 // いいねトグル
-export async function toggleFavorite(quoteId) {
-  const data = {};
+export async function toggleFavorite(quoteId, isCampaign = false) {
+  const data = { is_campaign: isCampaign };
   // Token がない場合のみ client_id を送る
   if (!getAuthToken()) {
     data.client_id = getClientId();
@@ -107,4 +107,72 @@ export async function fetchWikipediaSummary(query, lang = "ja") {
   const summaryRes = await axios.get(summaryUrl);
 
   return summaryRes.data; // contains title, extract, extract_html, content_urls, etc.
+}
+
+// ========================================
+// Tracking API
+// ========================================
+
+// Quote 表示を記録
+export async function trackQuoteView(quoteId) {
+  try {
+    const clientId = await getClientId();
+    await api.post("/tracking/quotes/view/", {
+      quote_id: quoteId,
+      client_id: clientId,
+    });
+  } catch (error) {
+    console.error("trackQuoteView error:", error);
+  }
+}
+
+// Quote クリック（Wiki/Amazon/Share）を記録
+export async function trackQuoteClick(quoteId, action) {
+  try {
+    const clientId = await getClientId();
+    await api.post("/tracking/quotes/click/", {
+      quote_id: quoteId,
+      client_id: clientId,
+      action, // "wiki" | "amazon" | "share"
+    });
+  } catch (error) {
+    console.error("trackQuoteClick error:", error);
+  }
+}
+
+// Campaign 表示を記録
+export async function trackCampaignView(campaignId) {
+  try {
+    const clientId = await getClientId();
+    await api.post("/tracking/campaigns/view/", {
+      campaign_id: campaignId,
+      client_id: clientId,
+    });
+  } catch (error) {
+    console.error("trackCampaignView error:", error);
+  }
+}
+
+// Campaign クリック（公式サイト/SNS/Share）を記録
+export async function trackCampaignClick(campaignId, action) {
+  try {
+    const clientId = await getClientId();
+    await api.post("/tracking/campaigns/click/", {
+      campaign_id: campaignId,
+      client_id: clientId,
+      action, // "official" | "sns" | "share"
+    });
+  } catch (error) {
+    console.error("trackCampaignClick error:", error);
+  }
+}
+
+// 統計サマリーを取得
+export async function fetchStatsOverview(date = null) {
+  const params = {};
+  if (date) {
+    params.date = date;
+  }
+  const res = await api.get("/tracking/stats/overview/", { params });
+  return res.data;
 }

@@ -8,4 +8,5 @@ urlpatterns = [
     path("api/me/", MeView.as_view(), name="me"),
     path("api/subscription/verify/", SubscriptionVerifyView.as_view(), name="subscription-verify"),
     path("api/quotes/", include("quotes.urls")),
+    path("api/tracking/", include("tracking.urls")),
 ]

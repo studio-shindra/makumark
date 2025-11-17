@@ -120,6 +120,7 @@ class Favorite(models.Model):
     """
     いいね情報。
     User に紐づけて複数デバイスで同期。
+    Quote または Campaign のどちらかに紐づく。
     移行期間のため client_id も残す（後方互換）。
     """
 
@@ -136,6 +137,15 @@ class Favorite(models.Model):
         on_delete=models.CASCADE,
         related_name="favorites",
         verbose_name="台詞",
+        null=True,
+        blank=True,
+    )
+    campaign_id = models.IntegerField(
+        verbose_name="キャンペーンID",
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="tracking.Campaign の ID（Campaign のお気に入り用）",
     )
     client_id = models.CharField(
         max_length=64,
@@ -150,9 +160,15 @@ class Favorite(models.Model):
         indexes = [
             models.Index(fields=["user"]),
             models.Index(fields=["client_id"]),
+            models.Index(fields=["campaign_id"]),
         ]
 
     def __str__(self) -> str:
+        if self.campaign_id:
+            target = f"Campaign#{self.campaign_id}"
+        else:
+            target = f"Quote#{self.quote_id}"
+        
         if self.user:
-            return f"{self.user.username} ❤ {self.quote_id}"
-        return f"{self.client_id} ❤ {self.quote_id}"
+            return f"{self.user.username} ❤ {target}"
+        return f"{self.client_id} ❤ {target}"
