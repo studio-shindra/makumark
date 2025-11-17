@@ -5,7 +5,7 @@ const props = defineProps({
   modelValue: { type: Boolean, default: false },
 });
 
-const emit = defineEmits(["update:modelValue", "openFavorites", "openSettings"]);
+const emit = defineEmits(["update:modelValue", "openFavorites", "openSettings", "openUpgrade"]);
 
 const router = useRouter();
 
@@ -44,7 +44,7 @@ function goTo(name) {
       </div>
 
       <nav class="d-flex flex-column gap-2">
-        <!-- ❤️ お気に入り -->
+        <!-- お気に入り -->
         <button
           type="button"
           class="btn btn-light text-start"
@@ -60,6 +60,15 @@ function goTo(name) {
           @click="() => { close(); emit('openSettings'); }"
         >
           設定
+        </button>
+
+        <!-- 広告を外す -->
+        <button
+          type="button"
+          class="btn btn-light text-start"
+          @click="() => { close(); emit('openUpgrade'); }"
+        >
+          広告を外す
         </button>
       </nav>
     </div>

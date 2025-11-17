@@ -6,7 +6,7 @@ import dayjs from "dayjs";
 import { fetchTodayQuote, fetchQuoteByDate, toggleFavorite, fetchWikipediaSummary } from "@/api";
 import WikiModal from '@/components/WikiModal.vue';
 import { Share } from '@capacitor/share';
-import { IconHeart, IconHeartFilled, IconBrandAmazon, IconShare2, IconMenuDeep, IconBrandWikipedia } from "@tabler/icons-vue";
+import { IconHeart, IconHeartFilled, IconBrandAmazon, IconShare2, IconMenuDeep, IconBrandWikipedia, IconBadgeAdOff } from "@tabler/icons-vue";
 import html2canvas from "html2canvas";
 import MainLayouts from "@/layouts/MainLayouts.vue";
 import { showPastQuoteInterstitial } from "@/admob";
@@ -421,7 +421,7 @@ async function onToggleFavorite() {
             </div>
             <!-- wikipedia -->
             <div class="wiki">
-              <button class="btn btn-outline-secondary border-0 p-0" @click="onOpenWiki" :disabled="wikiLoading || !quote">
+              <button class="btn p-0" @click="onOpenWiki" :disabled="wikiLoading || !quote">
                 <IconBrandWikipedia />
               </button>
             </div>
@@ -429,16 +429,21 @@ async function onToggleFavorite() {
             <div class="share-link">
               <button
                 type="button"
-                class="btn btn-outline-secondary border-0 p-0"
+                class="btn p-0"
                 :disabled="sharing || !quote"
                 @click="onShareImage"
               >
                 <IconShare2 />
               </button>
             </div>
-            <div class="div">
+            <div class="upgrade">
+              <button class="btn p-0" @click="mainLayoutsRef?.openUpgradeModal()">
+                <IconBadgeAdOff />
+              </button>
+            </div>
+            <div class="menu">
               <button class="btn p-0" @click="openSidebar">
-                <IconMenuDeep /><!-- ★このボタンで下のsidebarが開く -->
+                <IconMenuDeep />
               </button>
             </div>
           </div>

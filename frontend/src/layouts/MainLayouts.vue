@@ -8,6 +8,7 @@ import Sidebar from "@/components/Sidebar.vue";
 import { fetchFavorites } from "@/api";
 import { showPastQuoteInterstitial } from "@/admob";
 import Settings from '@/views/Settings.vue';
+import Upgrade from '@/views/Upgrade.vue';
 
 const isFavoriteOpen = ref(false);
 const favorites = ref([]);
@@ -15,6 +16,7 @@ const router = useRouter();
 
 const isSidebarOpen = ref(false);
 const isSettingsOpen = ref(false);
+const isUpgradeOpen = ref(false);
 
 const todayStr = dayjs().format("YYYY-MM-DD");
 
@@ -41,6 +43,16 @@ function openSettings() {
   // サイドバーのアニメーションが終わってからモーダルを開く
   setTimeout(() => {
     isSettingsOpen.value = true;
+  }, 350);
+}
+
+function openUpgrade() {
+  // サイドバーを閉じる
+  isSidebarOpen.value = false;
+
+  // サイドバーのアニメーションが終わってからモーダルを開く
+  setTimeout(() => {
+    isUpgradeOpen.value = true;
   }, 350);
 }
 
@@ -73,9 +85,14 @@ function openSidebar() {
   isSidebarOpen.value = true;
 }
 
-// 親コンポーネントからopenSidebarを呼び出せるように公開
+function openUpgradeModal() {
+  openUpgrade();
+}
+
+// 親コンポーネントからopenSidebarとopenUpgradeModalを呼び出せるように公開
 defineExpose({
   openSidebar,
+  openUpgradeModal,
 });
 </script>
 
@@ -98,6 +115,7 @@ defineExpose({
       v-model="isSidebarOpen"
       @openFavorites="openFavorites"
       @openSettings="openSettings"
+      @openUpgrade="openUpgrade"
     />
 
     <!-- お気に入りモーダル -->
@@ -108,6 +126,11 @@ defineExpose({
     <!-- 設定モーダル -->
     <BaseModal v-model="isSettingsOpen">
       <Settings />
+    </BaseModal>
+
+    <!-- プレミアムモーダル -->
+    <BaseModal v-model="isUpgradeOpen">
+      <Upgrade />
     </BaseModal>
   </div>
 </template>

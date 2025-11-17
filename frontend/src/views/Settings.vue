@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted } from "vue";
 import { scheduleDailyNotification, showTestNotification } from "@/notifications";
-import { currentUser, isPremium, isAuthenticated, signInWithApple, logout, verifySubscription } from "@/stores/user";
+import { currentUser, isPremium, isAuthenticated, signInWithApple, logout } from "@/stores/user";
 
 const hour = ref(9);
 const minute = ref(0);
@@ -40,10 +40,10 @@ async function handleSignIn() {
   
   try {
     await signInWithApple();
-    message.value = "✅ サインインに成功しました！";
+    message.value = "サインインに成功しました";
   } catch (error) {
     console.error(error);
-    message.value = "❌ サインインに失敗しました";
+    message.value = "サインインに失敗しました";
   } finally {
     isProcessing.value = false;
   }
@@ -53,26 +53,6 @@ function handleLogout() {
   logout();
   message.value = "ログアウトしました";
 }
-
-async function handlePurchasePremium() {
-  if (isProcessing.value) return;
-  isProcessing.value = true;
-  
-  try {
-    // TODO: 実際の IAP 購入フロー
-    // 今はデモとして receipt を送信
-    const demoReceipt = `demo_receipt_${Date.now()}`;
-    await verifySubscription(demoReceipt);
-    message.value = "✅ プレミアム購読が有効になりました！";
-  } catch (error) {
-    console.error(error);
-    message.value = "❌ 購入処理に失敗しました";
-  } finally {
-    isProcessing.value = false;
-  }
-}
-
-
 </script>
 
 <template>
@@ -125,7 +105,7 @@ async function handlePurchasePremium() {
       </p>
     </section>
 
-    <!-- アカウント・購読セクション -->
+    <!-- アカウント -->
     <section class="mb-4">
       <h3 class="h6">アカウント</h3>
       
@@ -145,31 +125,14 @@ async function handlePurchasePremium() {
           Apple でサインイン
         </button>
       </div>
-
       <div v-else class="mb-3">
         <p class="small mb-2">
           <strong>{{ currentUser?.username || currentUser?.email || 'ユーザー' }}</strong>
           <span v-if="isPremium" class="badge bg-success ms-2">プレミアム</span>
         </p>
-        
-        <div v-if="!isPremium" class="mb-2">
-          <p class="small text-muted mb-2">
-            プレミアムプランで広告を削除できます。
-          </p>
-          <button 
-            type="button" 
-            class="btn btn-primary btn-sm"
-            @click="handlePurchasePremium"
-            :disabled="isProcessing"
-          >
-            💎 広告を削除 - ¥500/月
-          </button>
-        </div>
-
-        <div v-else class="alert alert-success py-2 px-3 mb-2">
-          <small>✅ プレミアム会員です。広告が非表示になっています。</small>
-        </div>
-
+        <p class="small text-muted mb-2">
+          サインインしています。お気に入りと購読情報が同期されます。
+        </p>
         <button 
           type="button" 
           class="btn btn-outline-secondary btn-sm"
@@ -178,8 +141,7 @@ async function handlePurchasePremium() {
           ログアウト
         </button>
       </div>
-    </section>
 
-    <!-- 今後ここに、テーマ・サブスク・その他設定を足していける -->
+    </section>
   </div>
 </template>
