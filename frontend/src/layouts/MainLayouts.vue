@@ -97,7 +97,7 @@ defineExpose({
 </script>
 
 <template>
-  <div class="main-page d-grid w-100 position-relative">
+  <div class="main-page w-100 position-relative">
     <header class="header d-flex">
       <slot name="header"></slot>
     </header>

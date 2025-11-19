@@ -36,19 +36,31 @@ nav{
 .main-page{
   height: 100vh;
   height: 100dvh; // 動的ビューポート高さ（モバイルブラウザ対応）
-  grid-template-rows: 80px 1fr 140px;
+  display: flex;
+  flex-direction: column;
   overflow: hidden; // スクロールを防ぐ
+  gap: 24px;
 }
 
 .header {
-  // セーフエリアのpadding-topを適用（iOSのステータスバー/ノッチの下に配置）
-  @include ios.safe-area-inset-top;
+  min-height: 140px;
+  flex-shrink: 0; // 縮小しないように
+  // // セーフエリアのpadding-topを適用（iOSのステータスバー/ノッチの下に配置）
+  // @include ios.safe-area-inset-top;
   // 左右のセーフエリアも適用（必要に応じて）
   @include ios.safe-area-inset-left;
   @include ios.safe-area-inset-right;
 }
 
+main {
+  flex: 1; // 残りのスペースを占める
+  overflow: auto; // 必要に応じてスクロール
+  min-height: 0; // Flexboxの縮小を適切に動作させるため
+}
+
 .footer {
+  min-height: 140px;
+  flex-shrink: 0; // 縮小しないように
   // セーフエリアのpadding-bottomを適用（iOSのホームインジケーターの上に配置）
   @include ios.safe-area-inset-bottom;
   // 左右のセーフエリアも適用（必要に応じて）
@@ -97,19 +109,27 @@ nav{
 }
 .share-area{
   .main-text-area{
-      height: calc(100vh - 80px - 140px);
+      flex: 1; // 可変の高さにする
       display: flex;
       flex-direction: column;
+      overflow: hidden; // スクロールを防ぐ
+      min-height: 0; // Flexboxの縮小を適切に動作させるため
     .main-text{
+      flex: 1; // 残りのスペースを占める
       writing-mode: vertical-rl;
       /* 縦書きでの折返し・はみ出し対策 */
       text-orientation: upright;
       white-space: pre-wrap;
       overflow-wrap: anywhere;
       word-break: break-word;
-      overflow: auto;
+      overflow: visible; // 折り返しを許可
       font-family: "Times New Roman", "YuMincho", "Hiragino Mincho ProN", "Yu Mincho", "MS PMincho", serif;
       width: 100%;
+      max-height: 100%; // 親の高さを超えないように
+      height: calc(100vh - 140px - 140px - 100px);  //header,footer,authorの３つを足して、vhから引く
+    }
+    .author-area {
+      flex-shrink: 0; // 縮小しないように固定
     }
   }
 }

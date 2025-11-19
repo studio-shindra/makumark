@@ -367,7 +367,7 @@ async function onToggleFavorite() {
   <MainLayouts ref="mainLayoutsRef">
     <template #header>
       <!-- 日付ナビ -->
-      <nav class="pt-5 flex-fill df-center" style="pointer-events: auto; position: relative; z-index: 10;">
+      <nav class="flex-fill d-flex justify-content-center align-items-end" style="pointer-events: auto; position: relative; z-index: 10;">
         <div class="day-buttons" ref="navRef" style="pointer-events: auto; touch-action: manipulation;">
           <div class="d-flex gap-2 align-items-center justify-content-around w-100">
             <button
@@ -412,7 +412,7 @@ async function onToggleFavorite() {
             <div v-if="isTextVisible" class="main-text df-center flex-fill py-3 px-2">
               <!-- キャンペーンの場合は《SP》ラベルを表示 -->
               <div v-if="isCampaign" class="badge bg-warning text-dark mb-2">《SP》</div>
-              <p class="fs-4">
+              <p class="fs-4 m-0">
                 {{ quote?.text }}
               </p>
             </div>
