@@ -60,7 +60,7 @@ async function jumpToDate(dateStr) {
   // 1. アラートを先に出す（過去の日付の場合）
   if (dateStr !== todayStr) {
     const ok = window.confirm(
-      "過去の台詞を見るには広告（いまはダミー）が表示されます。続けますか？"
+      "過去の台詞を見るには広告が表示されます。続けますか？"
     );
     if (!ok) return;
     

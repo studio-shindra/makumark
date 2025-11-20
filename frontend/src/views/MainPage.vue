@@ -10,6 +10,7 @@ import { IconHeart, IconHeartFilled, IconBrandAmazon, IconShare2, IconMenuDeep, 
 import html2canvas from "html2canvas";
 import MainLayouts from "@/layouts/MainLayouts.vue";
 import { showPastQuoteInterstitial } from "@/admob";
+import { isPremium } from "@/stores/user";
 
 const route = useRoute();
 const router = useRouter();
@@ -288,14 +289,12 @@ async function loadQuoteFor(dateStr) {
 async function onSelectDay(day) {
   if (day.isFuture) return; // 未来は押せない
 
-  // 今日じゃなければ広告を挟む
-  if (day.value !== todayStr) {
+  // 今日じゃなければ広告ゲート（ただしプレミアムはスキップ）
+  if (day.value !== todayStr && !isPremium.value) {
     const ok = window.confirm(
-      "過去の台詞を見るには広告（いまはダミー）が表示されます。続けますか？"
+      "過去の台詞を見るには広告が表示されます。続けますか？"
     );
     if (!ok) return;
-
-    // ネイティブ環境ならここでインタースティシャル表示
     await showPastQuoteInterstitial();
   }
 

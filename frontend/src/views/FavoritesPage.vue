@@ -36,7 +36,7 @@ async function onClickQuote(q) {
 
   if (q.publish_date !== todayStr) {
     const ok = window.confirm(
-      "過去の台詞を見るには広告動画（いまはダミー）が再生されます。続けますか？"
+      "過去の台詞を見るには広告動画が再生されます。続けますか？"
     );
     if (!ok) return;
   }

@@ -2,9 +2,14 @@
 import { ref, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { showFooterBanner, showPastQuoteInterstitial } from "@/admob";
+import { initPurchases } from "@/iap";
 import { LocalNotifications } from "@capacitor/local-notifications";
 import { Capacitor } from "@capacitor/core";
 import { restoreAuth } from "@/stores/user";
+
+console.log('mm_is_premium =', localStorage.getItem('mm_is_premium'));
+console.log('currentUser?.is_premium =', currentUser?.value?.is_premium);
+console.log('isPremium =', isPremium.value);
 
 const route = useRoute();
 const router = useRouter();
@@ -31,6 +36,9 @@ function openSidebar() {
 onMounted(async () => {
   // 認証状態を復元
   await restoreAuth();
+  
+  // IAP（課金）の初期化
+  await initPurchases();
   
   await ensureNotificationPermission();
   showFooterBanner(); // ネイティブのときだけ中で動くようにしてあるやつ

@@ -1,10 +1,21 @@
 import { ref, computed } from 'vue';
 import { Capacitor } from '@capacitor/core';
+import { hideBanner } from '@/admob';
 
 // グローバル User 状態管理
 export const currentUser = ref(null);
 export const authToken = ref(null);
-export const isPremium = computed(() => currentUser.value?.is_premium || false);
+
+// 端末ローカルのプレミアムフラグ（サインイン不要で課金可能にするため）
+export const localPremium = ref(
+  localStorage.getItem('mm_is_premium') === '1'
+);
+
+// isPremium: ローカル or サーバのどちらかが true なら OK
+export const isPremium = computed(() => 
+  localPremium.value || currentUser.value?.is_premium || false
+);
+
 export const isAuthenticated = computed(() => !!authToken.value);
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000';
@@ -147,6 +158,21 @@ export function logout() {
 }
 
 /**
+ * 端末ローカルでプレミアムフラグを立てる（サインイン不要の課金用）
+ */
+export function markPremiumLocally() {
+  localPremium.value = true;
+  localStorage.setItem('mm_is_premium', '1');
+  console.log('✅ ローカルプレミアム有効化');
+  // 課金直後に表示中のバナーを即時非表示
+  try {
+    hideBanner();
+  } catch (e) {
+    // noop
+  }
+}
+
+/**
  * 購読を検証（receipt を Backend に送信）
  */
 export async function verifySubscription(receipt) {
@@ -170,5 +196,14 @@ export async function verifySubscription(receipt) {
   const user = await res.json();
   currentUser.value = user;
   console.log('✅ 購読検証成功:', user);
+  // サーバ側でもプレミアムが有効なら、現在表示中のバナーを即非表示
+  if (user?.is_premium) {
+    console.log('✅ プレミアム検証OK → バナー削除');
+    try {
+      hideBanner();
+    } catch (e) {
+      // noop
+    }
+  }
   return user;
 }
