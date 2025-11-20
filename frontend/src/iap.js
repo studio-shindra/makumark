@@ -120,3 +120,28 @@ export async function checkPremiumStatus() {
 // export async function setUserID(userId) { ... }
 // export async function clearUserID() { ... }
 
+/**
+ * 失敗しても throw しない安全ラッパー群
+ */
+export async function safeCheckPremiumStatus() {
+  try {
+    const is = await checkPremiumStatus();
+    console.log('✅ checkPremiumStatus result', is);
+    return { isPremium: !!is };
+  } catch (err) {
+    console.error('❌ StoreKit 初期化失敗 (checkPremiumStatus):', err);
+    return { isPremium: false };
+  }
+}
+
+export async function safeRestorePurchases() {
+  try {
+    const result = await restorePurchases();
+    console.log('✅ restorePurchases result', result);
+    return result;
+  } catch (err) {
+    console.error('❌ StoreKit 復元失敗:', err);
+    return { restored: false };
+  }
+}
+

@@ -7,9 +7,9 @@ import { LocalNotifications } from "@capacitor/local-notifications";
 import { Capacitor } from "@capacitor/core";
 import { restoreAuth } from "@/stores/user";
 
+// 起動時の簡易ログ（安全な値のみ）
+console.log('API_BASE =', import.meta.env.VITE_API_BASE);
 console.log('mm_is_premium =', localStorage.getItem('mm_is_premium'));
-console.log('currentUser?.is_premium =', currentUser?.value?.is_premium);
-console.log('isPremium =', isPremium.value);
 
 const route = useRoute();
 const router = useRouter();
@@ -34,12 +34,14 @@ function openSidebar() {
 }
 
 onMounted(async () => {
-  // 認証状態を復元
+  // 認証状態を復元（ここは await してOK）
   await restoreAuth();
-  
-  // IAP（課金）の初期化
-  await initPurchases();
-  
+
+  // IAP 初期化はアプリ描画を止めない（awaitしない・エラー握りつぶし）
+  Promise.resolve()
+    .then(() => initPurchases())
+    .catch((e) => console.warn('IAP init skipped with error:', e));
+
   await ensureNotificationPermission();
   showFooterBanner(); // ネイティブのときだけ中で動くようにしてあるやつ
 });
