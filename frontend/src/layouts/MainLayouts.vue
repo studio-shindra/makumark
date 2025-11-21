@@ -16,7 +16,8 @@ const router = useRouter();
 
 const isSidebarOpen = ref(false);
 const isSettingsOpen = ref(false);
-const isUpgradeOpen = ref(false);
+// ver1: Upgradeモーダル（コメントアウト）
+// const isUpgradeOpen = ref(false);
 
 const todayStr = dayjs().format("YYYY-MM-DD");
 
@@ -46,15 +47,16 @@ function openSettings() {
   }, 350);
 }
 
-function openUpgrade() {
-  // サイドバーを閉じる
-  isSidebarOpen.value = false;
+// ver1: openUpgrade関数（コメントアウト）
+// function openUpgrade() {
+//   // サイドバーを閉じる
+//   isSidebarOpen.value = false;
 
-  // サイドバーのアニメーションが終わってからモーダルを開く
-  setTimeout(() => {
-    isUpgradeOpen.value = true;
-  }, 350);
-}
+//   // サイドバーのアニメーションが終わってからモーダルを開く
+//   setTimeout(() => {
+//     isUpgradeOpen.value = true;
+//   }, 350);
+// }
 
 async function jumpToDate(dateStr) {
   // 1. アラートを先に出す（過去の日付の場合）
@@ -85,14 +87,16 @@ function openSidebar() {
   isSidebarOpen.value = true;
 }
 
-function openUpgradeModal() {
-  openUpgrade();
-}
+// ver1: openUpgradeModal関数（コメントアウト）
+// function openUpgradeModal() {
+//   openUpgrade();
+// }
 
-// 親コンポーネントからopenSidebarとopenUpgradeModalを呼び出せるように公開
+// 親コンポーネントからopenSidebarを呼び出せるように公開
 defineExpose({
   openSidebar,
-  openUpgradeModal,
+  // ver1: openUpgradeModal（コメントアウト）
+  // openUpgradeModal,
 });
 </script>
 
@@ -115,8 +119,9 @@ defineExpose({
       v-model="isSidebarOpen"
       @openFavorites="openFavorites"
       @openSettings="openSettings"
-      @openUpgrade="openUpgrade"
     />
+    <!-- ver1: openUpgradeイベント（コメントアウト） -->
+    <!-- @openUpgrade="openUpgrade" -->
 
     <!-- お気に入りモーダル -->
     <BaseModal v-model="isFavoriteOpen">
@@ -128,9 +133,9 @@ defineExpose({
       <Settings />
     </BaseModal>
 
-    <!-- プレミアムモーダル -->
-    <BaseModal v-model="isUpgradeOpen">
+    <!-- ver1: プレミアムモーダル（コメントアウト） -->
+    <!-- <BaseModal v-model="isUpgradeOpen">
       <Upgrade />
-    </BaseModal>
+    </BaseModal> -->
   </div>
 </template>

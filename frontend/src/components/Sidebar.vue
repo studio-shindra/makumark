@@ -62,14 +62,14 @@ function goTo(name) {
           設定
         </button>
 
-        <!-- 広告を外す -->
-        <button
+        <!-- ver1: 広告を外す（コメントアウト） -->
+        <!-- <button
           type="button"
           class="btn btn-light text-start"
           @click="() => { close(); emit('openUpgrade'); }"
         >
           広告を外す
-        </button>
+        </button> -->
       </nav>
     </div>
   </Transition>

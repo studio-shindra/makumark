@@ -34,13 +34,13 @@ function openSidebar() {
 }
 
 onMounted(async () => {
-  // 認証状態を復元（ここは await してOK）
-  await restoreAuth();
+  // ver1: 認証状態を復元（コメントアウト）
+  // await restoreAuth();
 
-  // IAP 初期化はアプリ描画を止めない（awaitしない・エラー握りつぶし）
-  Promise.resolve()
-    .then(() => initPurchases())
-    .catch((e) => console.warn('IAP init skipped with error:', e));
+  // ver1: IAP 初期化（コメントアウト）
+  // Promise.resolve()
+  //   .then(() => initPurchases())
+  //   .catch((e) => console.warn('IAP init skipped with error:', e));
 
   await ensureNotificationPermission();
   showFooterBanner(); // ネイティブのときだけ中で動くようにしてあるやつ

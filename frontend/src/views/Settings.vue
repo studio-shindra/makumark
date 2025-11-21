@@ -91,12 +91,12 @@ function handleError(msg) {
       </p>
     </section>
 
-    <!-- アカウント -->
-    <AccountSync 
+    <!-- ver1: アカウント（コメントアウト） -->
+    <!-- <AccountSync 
       class="mb-4"
       @success="handleSuccess"
       @error="handleError"
-    />
+    /> -->
 
     <!-- メッセージ表示 -->
     <div v-if="message" class="alert" :class="message.includes('成功') || message.includes('保存') ? 'alert-success' : 'alert-danger'">

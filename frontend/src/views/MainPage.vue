@@ -517,11 +517,12 @@ async function onToggleFavorite() {
                 <IconShare2 />
               </button>
             </div>
-            <div class="upgrade">
+            <!-- ver1: アップグレードボタン（コメントアウト） -->
+            <!-- <div class="upgrade">
               <button class="btn p-0" @click="mainLayoutsRef?.openUpgradeModal()">
                 <IconBadgeAdOff />
               </button>
-            </div>
+            </div> -->
             <div class="menu">
               <button class="btn p-0" @click="openSidebar">
                 <IconMenuDeep />
