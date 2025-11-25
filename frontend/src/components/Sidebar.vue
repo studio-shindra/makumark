@@ -5,7 +5,7 @@ const props = defineProps({
   modelValue: { type: Boolean, default: false },
 });
 
-const emit = defineEmits(["update:modelValue", "openFavorites", "openSettings", "openUpgrade"]);
+const emit = defineEmits(["update:modelValue", "openFavorites", "openSettings", "openUpgrade", "openPrivacy"]);
 
 const router = useRouter();
 
@@ -67,8 +67,9 @@ function goTo(name) {
 
           <button
             type="button"
-            class="btn btn-white text-start d-flex justify-content-between align-items-center py-2 px-0"
-            @click="() => { close(); emit('openUpgrade'); }"
+            class="btn btn-white text-start d-flex justify-content-between align-items-center py-2 px-0 border-bottom"
+            @click="() => { close(); emit('openPrivacy'); }"
+            style="border-radius: 0;"
           >
           プライバシーポリシー<IconChevronRight />
           </button>

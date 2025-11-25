@@ -5,6 +5,7 @@ import dayjs from "dayjs";
 import BaseModal from "@/components/BaseModal.vue";
 import FavoriteList from "@/components/FavoriteList.vue";
 import Sidebar from "@/components/Sidebar.vue";
+import PrivacyModal from "@/components/PrivacyModal.vue";
 import { fetchFavorites } from "@/api";
 import { showPastQuoteInterstitial } from "@/admob";
 import Settings from '@/views/Settings.vue';
@@ -16,6 +17,7 @@ const router = useRouter();
 
 const isSidebarOpen = ref(false);
 const isSettingsOpen = ref(false);
+const isPrivacyOpen = ref(false);
 // ver1: Upgradeモーダル（コメントアウト）
 // const isUpgradeOpen = ref(false);
 
@@ -44,6 +46,16 @@ function openSettings() {
   // サイドバーのアニメーションが終わってからモーダルを開く
   setTimeout(() => {
     isSettingsOpen.value = true;
+  }, 350);
+}
+
+function openPrivacy() {
+  // サイドバーを閉じる
+  isSidebarOpen.value = false;
+
+  // サイドバーのアニメーションが終わってからモーダルを開く
+  setTimeout(() => {
+    isPrivacyOpen.value = true;
   }, 350);
 }
 
@@ -119,6 +131,7 @@ defineExpose({
       v-model="isSidebarOpen"
       @openFavorites="openFavorites"
       @openSettings="openSettings"
+      @openPrivacy="openPrivacy"
     />
     <!-- ver1: openUpgradeイベント（コメントアウト） -->
     <!-- @openUpgrade="openUpgrade" -->
@@ -132,6 +145,9 @@ defineExpose({
     <BaseModal v-model="isSettingsOpen">
       <Settings />
     </BaseModal>
+
+    <!-- プライバシーポリシーモーダル -->
+    <PrivacyModal v-model="isPrivacyOpen" />
 
     <!-- ver1: プレミアムモーダル（コメントアウト） -->
     <!-- <BaseModal v-model="isUpgradeOpen">

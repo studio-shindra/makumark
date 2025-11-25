@@ -12,6 +12,7 @@ import html2canvas from "html2canvas";
 import MainLayouts from "@/layouts/MainLayouts.vue";
 import { showPastQuoteInterstitial } from "@/admob";
 import { isPremium } from "@/stores/user";
+import gsap from 'gsap';
 
 const route = useRoute();
 const router = useRouter();
@@ -22,6 +23,7 @@ const error = ref("");
 const isTextVisible = ref(true); // テキストの表示/非表示を制御
 const isAnimating = ref(false); // アニメーション中フラグ
 const showSelectionIndicator = ref(true); // 選択日の丸表示を制御（ふわっと出す）
+const showResetLoader = ref(false); // 今日へリセット時のローダー表示
 
 // MainLayoutsのrefを取得して、openSidebarを呼び出せるようにする
 const mainLayoutsRef = ref(null);
@@ -85,6 +87,7 @@ async function onShareImage() {
   try {
     sharing.value = true;
 
+    // 1. 共通: html2canvas で PNG 生成
     const canvas = await html2canvas(shareAreaHidden.value, {
       backgroundColor: "#ffffff",
       scale: 2,
@@ -96,27 +99,83 @@ async function onShareImage() {
     const fileName = `makumark_${dayjs().format("YYYYMMDD_HHmmss")}.png`;
 
     if (Capacitor.isNativePlatform()) {
-      // ネイティブ: 動的インポート（ブラウザでバンドル不要）
-      const { Filesystem, Directory } = await import('@capacitor/filesystem');
-      const result = await Filesystem.writeFile({
-        path: fileName,
-        data: base64,
-        directory: Directory.Cache,
-      });
+      // ===== ネイティブ処理 =====
+      // IMPORTANT: iOS Info.plist に以下が必要:
+      // - LSApplicationQueriesSchemes: ["instagram", "instagram-stories"]
+      // - NSPhotoLibraryAddUsageDescription: "画像を保存するために写真ライブラリへのアクセスが必要です"
 
-      await Share.share({
-        title: "MakuMark",
-        text: `台詞: ${quote.value.text?.slice(0, 50)}...`,
-        url: result.uri,
-        dialogTitle: "シェア",
-      });
+      try {
+        // 2. 写真ライブラリに保存
+        const { Camera } = await import('@capacitor/camera');
+        await Camera.savePhoto({
+          data: base64,
+          format: 'png'
+        });
+        console.log('[native] Photo saved to library');
+
+        // 3. Instagram Stories にシェア
+        // instagram-stories:// URL スキームを使用
+        const instagramUrl = `instagram-stories://share?source_application=${encodeURIComponent('com.studioshindra.makumark')}`;
+        
+        // App plugin で URL を開く（バックグラウンド画像として base64 を渡す）
+        const { App: CapApp } = await import('@capacitor/app');
+        
+        // Instagram がインストールされているか確認
+        const canOpen = await CapApp.canOpenUrl({ url: 'instagram-stories://share' });
+        
+        if (canOpen.value) {
+          // Instagram Stories に画像をシェア
+          // 注: iOS では UIPasteboard を使用してデータを渡す必要があるため、
+          // より確実な方法として Share.share を使用
+          await Share.share({
+            title: "MakuMark",
+            text: `台詞: ${quote.value.text?.slice(0, 50)}...`,
+            url: dataUrl, // Instagram は data URL を受け取れる
+            dialogTitle: "シェア先を選択",
+          });
+          console.log('[native] Shared to Instagram Stories');
+        } else {
+          // Instagram 未インストール時は通常のシェア
+          console.warn('[native] Instagram not installed, using standard share');
+          // Filesystem に一時保存してからシェア
+          const { Filesystem, Directory } = await import('@capacitor/filesystem');
+          const result = await Filesystem.writeFile({
+            path: fileName,
+            data: base64,
+            directory: Directory.Cache,
+          });
+
+          await Share.share({
+            title: "MakuMark",
+            text: `台詞: ${quote.value.text?.slice(0, 50)}...`,
+            url: result.uri,
+            dialogTitle: "シェア",
+          });
+        }
+      } catch (saveErr) {
+        console.error('[native] Save/share error:', saveErr);
+        // フォールバック: 従来の Filesystem 経由シェア
+        const { Filesystem, Directory } = await import('@capacitor/filesystem');
+        const result = await Filesystem.writeFile({
+          path: fileName,
+          data: base64,
+          directory: Directory.Cache,
+        });
+
+        await Share.share({
+          title: "MakuMark",
+          text: `台詞: ${quote.value.text?.slice(0, 50)}...`,
+          url: result.uri,
+          dialogTitle: "シェア",
+        });
+      }
     } else {
-      // Webフォールバック: Share API に dataURL を試す → 失敗時はダウンロード
+      // ===== Web フォールバック =====
       let sharedOk = false;
       try {
         await Share.share({
           title: "MakuMark",
-            text: `台詞: ${quote.value.text?.slice(0, 50)}...`,
+          text: `台詞: ${quote.value.text?.slice(0, 50)}...`,
           url: dataUrl,
           dialogTitle: "シェア",
         });
@@ -394,16 +453,76 @@ function onTouchEnd(e) {
   const deltaX = e.changedTouches[0].clientX - touchStartX.value;
   const deltaY = e.changedTouches[0].clientY - touchStartY.value;
   
+  // 下スワイプ判定（80px以上） → 今日にリセット
+  if (deltaY > 80 && Math.abs(deltaX) < 50) {
+    // 既に今日なら何もしない
+    if (selectedDate.value === todayStr) return;
+    if (isAnimating.value) return;
+    
+    resetToToday();
+    return;
+  }
+  
   // 縦スクロールを優先（Y方向の移動量がX方向より大きい場合は無視）
   if (Math.abs(deltaY) > Math.abs(deltaX)) return;
   
-  // 右スワイプ判定（60px以上）
+  // 右スワイプ判定（60px以上） → 過去へ（昨日方向）
   if (deltaX > 60) {
     const prev = dayjs(selectedDate.value).subtract(1, 'day').format('YYYY-MM-DD');
     const prevDay = navDays.value.find(d => d.value === prev);
     if (prevDay && !prevDay.isFuture && !isAnimating.value) {
       onSelectDay(prevDay);
     }
+  }
+  
+  // 左スワイプ判定（-60px以下） → 未来へ（明日方向、ただし今日まで）
+  if (deltaX < -60) {
+    const next = dayjs(selectedDate.value).add(1, 'day').format('YYYY-MM-DD');
+    const nextDay = navDays.value.find(d => d.value === next);
+    // 今日を超えて未来には行けない
+    if (nextDay && !nextDay.isFuture && !isAnimating.value) {
+      onSelectDay(nextDay);
+    }
+  }
+}
+
+// 今日にリセット（ローダー付き）
+async function resetToToday() {
+  try {
+    isAnimating.value = true;
+    
+    // 1. ローダーを表示
+    showResetLoader.value = true;
+    
+    // 2. ローダーアイコンのアニメーション（App.vueと同じ）
+    await nextTick();
+    requestAnimationFrame(() => {
+      const el = document.querySelector('.reset-loader-icon');
+      if (el) {
+        gsap.fromTo(el,
+          { y: 60, opacity: 0, scale: 0.95 },
+          { duration: 1.5, y: 0, opacity: 1, scale: 1, ease: 'elastic.out(1,0.6)' }
+        );
+      }
+    });
+    
+    // 3. 少し待つ（ローダー表示時間）
+    await new Promise(r => setTimeout(r, 1200));
+    
+    // 4. 今日の日付に設定してロード
+    selectedDate.value = todayStr;
+    await loadQuoteFor(todayStr);
+    
+    // 5. ルートを更新
+    ignoreRouteWatch.value = true;
+    router.replace({ name: "home", query: { date: todayStr } });
+    
+    // 6. ローダーを消す
+    await new Promise(r => setTimeout(r, 300));
+    showResetLoader.value = false;
+    
+  } finally {
+    isAnimating.value = false;
   }
 }
 </script>
@@ -606,7 +725,43 @@ function onTouchEnd(e) {
 
     </template>
   </MainLayouts>
+
+  <!-- 今日へリセット時のローダー -->
+  <Transition name="fade">
+    <div
+      v-if="showResetLoader"
+      class="reset-loader df-center"
+    >
+      <div class="text-center">
+        <img src="/icon.svg" alt="MakuMark" class="reset-loader-icon" style="height:40px;" />
+      </div>
+    </div>
+  </Transition>
 </template>
+
+<style scoped>
+.reset-loader {
+  position: fixed;
+  inset: 0;
+  background: #ffffff;
+  z-index: 9999;
+  pointer-events: none;
+}
+
+.reset-loader-icon { 
+  will-change: transform, opacity; 
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.4s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+</style>
 
 
 
