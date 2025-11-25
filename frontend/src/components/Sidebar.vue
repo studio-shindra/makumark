@@ -1,6 +1,6 @@
 <script setup>
 import { useRouter } from "vue-router";
-import { IconX } from "@tabler/icons-vue";
+import { IconX, IconChevronRight } from "@tabler/icons-vue";
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
 });
@@ -43,33 +43,49 @@ function goTo(name) {
         </button>
       </div>
 
-      <nav class="d-flex flex-column gap-2">
-        <!-- お気に入り -->
-        <button
-          type="button"
-          class="btn btn-light text-start"
-          @click="emit('openFavorites')"
-        >
-          お気に入り
-        </button>
+      <nav class="d-flex flex-column justify-content-between gap-2 h-100">
+        <div class="wrap d-flex flex-column gap-4">
+          <!-- お気に入り -->
+          <button
+            type="button"
+            class="btn btn-white text-start d-flex justify-content-between align-items-center py-2 px-0 border-bottom"
+            @click="emit('openFavorites')"
+            style="border-radius: 0;"
+          >
+            お気に入り<IconChevronRight />
+          </button>
 
-        <!-- 設定（モーダルで開く） -->
-        <button
-          type="button"
-          class="btn btn-light text-start"
-          @click="() => { close(); emit('openSettings'); }"
-        >
-          設定
-        </button>
+          <!-- 設定（モーダルで開く） -->
+          <button
+            type="button"
+            class="btn btn-white text-start d-flex justify-content-between align-items-center py-2 px-0 border-bottom"
+            @click="() => { close(); emit('openSettings'); }"
+            style="border-radius: 0;" 
+          >
+            設定<IconChevronRight />
+          </button>
 
-        <!-- ver1: 広告を外す（コメントアウト） -->
-        <!-- <button
-          type="button"
-          class="btn btn-light text-start"
-          @click="() => { close(); emit('openUpgrade'); }"
-        >
-          広告を外す
-        </button> -->
+          <!-- ver1: 広告を外す（コメントアウト） -->
+          <!-- <button
+            type="button"
+            class="btn btn-light text-start"
+            @click="() => { close(); emit('openUpgrade'); }"
+          >
+            広告を外す
+          </button> -->
+        </div> <!-- //wrap -->
+        <!-- やっぱり絶対入れたくない品位にかける -->
+        <!-- <div class="ad">
+          <div 
+            class="wrap d-flex flex-column align-items-end"
+            style="opacity: 0.3;">
+            <div class="title small text-muted">WEB等デザイン制作なら</div>
+            <a href="https://sk-tokyo.net/" target="_blank" class="logo"><img style="height: 30px;" src="/sk-logo-bk.png" alt=""></a>
+          </div>
+        </div> -->
+        <div class="tome d-flex align-items-end w-100 justify-content-end">
+          <a href="https://studio-shindra.com/" target="_blank" class="logo"><img style="height: 24px;" src="/shindra-icon-bk.svg" alt=""></a>
+        </div>
       </nav>
     </div>
   </Transition>

@@ -212,8 +212,7 @@ main {
   position: absolute;
   left: -9999px;
   width: 600px;
-  height: 100%;
-  min-height: 400px;
+  height: 400px;
   padding: 40px;
   .share-area{
     height: 100%;
@@ -232,6 +231,15 @@ main {
       align-items: end;
       flex-direction: column;
       width: 100%;
+    }
+    // ロゴエリアの高さを固定して崩れを防ぐ
+    .d-flex.align-items-center.gap-2 {
+      flex-shrink: 0;
+      img {
+        display: block;
+        height: 40px;
+        width: auto;
+      }
     }
   }
 }

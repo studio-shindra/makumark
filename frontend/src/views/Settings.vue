@@ -1,19 +1,45 @@
 <script setup>
-import { ref, onMounted } from "vue";
-import { scheduleDailyNotification, showTestNotification } from "@/notifications";
+import { ref, onMounted, watch, computed } from "vue";
+import { scheduleDailyNotification, showTestNotification, cancelDailyNotification } from "@/notifications";
 import AccountSync from "@/components/AccountSync.vue";
 
 const hour = ref(9);
 const minute = ref(0);
 const message = ref("");
+const isNotificationEnabled = ref(true); // 通知ON/OFF
 
-// localStorage から読み込み
-onMounted(() => {
-  const h = localStorage.getItem("makumark_notif_hour");
-  const m = localStorage.getItem("makumark_notif_minute");
-  if (h !== null) hour.value = Number(h);
-  if (m !== null) minute.value = Number(m);
+// localStorage から読み込み（computedより先に実行）
+const h = localStorage.getItem("makumark_notif_hour");
+const m = localStorage.getItem("makumark_notif_minute");
+const enabled = localStorage.getItem("makumark_notif_enabled");
+
+if (h !== null) hour.value = Number(h);
+if (m !== null) minute.value = Number(m);
+if (enabled !== null) isNotificationEnabled.value = enabled === "true";
+
+// time input用の HH:MM 形式の文字列
+const timeString = computed({
+  get: () => {
+    return `${hour.value.toString().padStart(2, '0')}:${minute.value.toString().padStart(2, '0')}`;
+  },
+  set: (val) => {
+    if (!val) return; // 空の場合は無視
+    const [h, m] = val.split(":").map(Number);
+    hour.value = h;
+    minute.value = m;
+  }
 });
+
+onMounted(() => {
+  // 初期化完了後の処理があればここに
+});
+
+// 自動保存を削除（保存ボタンで明示的に保存）
+// watch([hour, minute], () => {
+//   if (isNotificationEnabled.value) {
+//     saveTime();
+//   }
+// });
 
 function saveTime() {
   const h = Math.min(23, Math.max(0, Number(hour.value) || 0));
@@ -24,12 +50,27 @@ function saveTime() {
   localStorage.setItem("makumark_notif_hour", String(h));
   localStorage.setItem("makumark_notif_minute", String(m));
 
-  message.value = `通知時刻を ${h.toString().padStart(2, "0")}:${m
-    .toString()
-    .padStart(2, "0")} に保存しました。`;
+  const timeStr = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+  alert(`通知時刻を ${timeStr} に保存しました`);
 
-  // ★ 通知を再スケジュール
-  scheduleDailyNotification();
+  if (isNotificationEnabled.value) {
+    scheduleDailyNotification();
+  }
+}
+
+function toggleNotification() {
+  isNotificationEnabled.value = !isNotificationEnabled.value;
+  localStorage.setItem("makumark_notif_enabled", String(isNotificationEnabled.value));
+  
+  if (isNotificationEnabled.value) {
+    alert("通知をONにしました");
+    // ON時は再スケジュール
+    scheduleDailyNotification();
+  } else {
+    alert("通知をOFFにしました");
+    // OFF時は通知をキャンセル
+    cancelDailyNotification();
+  }
 }
 
 function handleSuccess(msg) {
@@ -42,53 +83,49 @@ function handleError(msg) {
 </script>
 
 <template>
-  <div class="container py-4">
-    <header class="mb-3">
+  <div class="">
+    <header class="mb-4">
       <h2 class="h5 mb-0">設定</h2>
       <small class="text-muted">MakuMark の動作をカスタマイズします。</small>
     </header>
 
-    <section class="mb-4">
-      <h3 class="h6">通知時刻</h3>
-      <p class="small text-muted">
-        「今日の一行」の通知を受け取りたい時間を設定します。（24時間表記）
-      </p>
+    <!-- アラーム風の通知設定 -->
+    <section class="notification-setting">
+      <div class="">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <div>
+            <h3 class="h6 mb-0">毎日の通知</h3>
+            <small class="text-muted">今日のことばをお届けします</small>
+          </div>
+        </div>
 
-      <div class="d-flex align-items-center gap-2 mb-2">
-        <input
-          type="number"
-          class="form-control"
-          style="max-width: 80px;"
-          v-model.number="hour"
-          min="0"
-          max="23"
-        />
-        <span>:</span>
-        <input
-          type="number"
-          class="form-control"
-          style="max-width: 80px;"
-          v-model.number="minute"
-          min="0"
-          max="59"
-        />
-      </div>
-      <div class="d-flex gap-2">
-        <button type="button" class="btn btn-primary btn-sm" @click="saveTime">
-          保存
-        </button>
-        <button
-          type="button"
-          class="btn btn-outline-secondary btn-sm"
-          @click="showTestNotification"
-        >
-          テスト通知
-        </button>
+        <!-- 時刻設定（ONの時のみ有効） -->
+        <div class="time-picker bg-light d-flex w-100 p-2 align-items-center justify-content-between" :class="{ 'disabled': !isNotificationEnabled }">
+          <div class="d-flex align-items-center justify-content-center gap-2 py-3 flex-fill">
+            <input
+              type="time"
+              class="form-control form-control-lg text-center border-0"
+              v-model="timeString"
+              :disabled="!isNotificationEnabled"
+              style="font-size: 1.5rem;"
+            />
+          </div>
+          <!-- トグルスイッチ -->
+          <div class="form-check form-switch">
+            <input 
+              class="form-check-input" 
+              type="checkbox" 
+              role="switch" 
+              id="notificationToggle"
+              v-model="isNotificationEnabled"
+              @change="toggleNotification"
+              style="width: 3rem; height: 1.5rem; cursor: pointer;"
+            >
+          </div>
+        </div>
       </div>
 
-      <p v-if="message" class="mt-2 small text-success">
-        {{ message }}
-      </p>
+      <button class="btn btn-dark text-white w-100 mt-3" @click="saveTime">保存</button>
     </section>
 
     <!-- ver1: アカウント（コメントアウト） -->
@@ -97,10 +134,27 @@ function handleError(msg) {
       @success="handleSuccess"
       @error="handleError"
     /> -->
-
-    <!-- メッセージ表示 -->
-    <div v-if="message" class="alert" :class="message.includes('成功') || message.includes('保存') ? 'alert-success' : 'alert-danger'">
-      {{ message }}
-    </div>
   </div>
 </template>
+
+<style scoped>
+.alarm-card {
+  background: #f8f9fa;
+}
+
+.time-picker.disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.form-control:disabled {
+  background-color: #e9ecef;
+  opacity: 0.6;
+}
+
+/* トグルスイッチのカスタマイズ */
+.form-check-input:checked {
+  background-color: orange;
+  border-color: orange;
+}
+</style>

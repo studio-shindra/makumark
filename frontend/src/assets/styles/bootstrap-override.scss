@@ -5,4 +5,7 @@ $primary: #172646;
 // 必要に応じて他の色もここで上書きできます
 // $secondary: #...;
 
-@import "bootstrap/scss/bootstrap";
+// Dart Sass 3.0 対応: @import → @use に変更
+@use "bootstrap/scss/bootstrap" with (
+  $primary: #172646
+);

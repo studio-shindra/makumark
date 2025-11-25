@@ -6,6 +6,7 @@ import dayjs from "dayjs";
 import { fetchTodayQuote, fetchQuoteByDate, toggleFavorite, fetchWikipediaSummary, trackQuoteView, trackQuoteClick, trackCampaignView, trackCampaignClick } from "@/api";
 import WikiModal from '@/components/WikiModal.vue';
 import { Share } from '@capacitor/share';
+import { Capacitor } from '@capacitor/core';
 import { IconHeart, IconHeartFilled, IconBrandAmazon, IconShare2, IconMenuDeep, IconBrandWikipedia, IconBadgeAdOff } from "@tabler/icons-vue";
 import html2canvas from "html2canvas";
 import MainLayouts from "@/layouts/MainLayouts.vue";
@@ -90,32 +91,51 @@ async function onShareImage() {
       useCORS: true,
     });
 
-    // Canvas を blob に変換
-    const blob = await new Promise((resolve) => {
-      canvas.toBlob(resolve, "image/png", 0.95);
-    });
+    const dataUrl = canvas.toDataURL("image/png", 0.95);
+    const base64 = dataUrl.split(",")[1];
+    const fileName = `makumark_${dayjs().format("YYYYMMDD_HHmmss")}.png`;
 
-    if (!blob) {
-      alert("画像の生成に失敗しました。");
-      return;
+    if (Capacitor.isNativePlatform()) {
+      // ネイティブ: 動的インポート（ブラウザでバンドル不要）
+      const { Filesystem, Directory } = await import('@capacitor/filesystem');
+      const result = await Filesystem.writeFile({
+        path: fileName,
+        data: base64,
+        directory: Directory.Cache,
+      });
+
+      await Share.share({
+        title: "MakuMark",
+        text: `台詞: ${quote.value.text?.slice(0, 50)}...`,
+        url: result.uri,
+        dialogTitle: "シェア",
+      });
+    } else {
+      // Webフォールバック: Share API に dataURL を試す → 失敗時はダウンロード
+      let sharedOk = false;
+      try {
+        await Share.share({
+          title: "MakuMark",
+            text: `台詞: ${quote.value.text?.slice(0, 50)}...`,
+          url: dataUrl,
+          dialogTitle: "シェア",
+        });
+        sharedOk = true;
+      } catch (err) {
+        console.warn('web share fallback to download', err);
+      }
+      if (!sharedOk) {
+        const a = document.createElement('a');
+        a.href = dataUrl;
+        a.download = fileName;
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }
     }
 
-    // Blob を File に変換
-    const file = new File(
-      [blob],
-      `makumark_${dayjs().format("YYYYMMDD_HHmmss")}.png`,
-      { type: "image/png" }
-    );
-
-    // Capacitor Share API で共有シートを表示
-    await Share.share({
-      title: "MakuMark",
-      text: `台詞: ${quote.value.text?.slice(0, 50)}...`,
-      files: [file.name], // ファイルパス
-      dialogTitle: "シェア",
-    });
-    
-    // トラッキング: シェアを記録
+    // トラッキング: シェア記録
     if (quote.value.is_campaign) {
       trackCampaignClick(quote.value.campaign_id, 'share');
     } else {
@@ -360,6 +380,32 @@ async function onToggleFavorite() {
     console.error("favorite error", e);
   }
 }
+
+// スワイプ処理
+const touchStartX = ref(0);
+const touchStartY = ref(0);
+
+function onTouchStart(e) {
+  touchStartX.value = e.touches[0].clientX;
+  touchStartY.value = e.touches[0].clientY;
+}
+
+function onTouchEnd(e) {
+  const deltaX = e.changedTouches[0].clientX - touchStartX.value;
+  const deltaY = e.changedTouches[0].clientY - touchStartY.value;
+  
+  // 縦スクロールを優先（Y方向の移動量がX方向より大きい場合は無視）
+  if (Math.abs(deltaY) > Math.abs(deltaX)) return;
+  
+  // 右スワイプ判定（60px以上）
+  if (deltaX > 60) {
+    const prev = dayjs(selectedDate.value).subtract(1, 'day').format('YYYY-MM-DD');
+    const prevDay = navDays.value.find(d => d.value === prev);
+    if (prevDay && !prevDay.isFuture && !isAnimating.value) {
+      onSelectDay(prevDay);
+    }
+  }
+}
 </script>
 
 <template>
@@ -398,7 +444,11 @@ async function onToggleFavorite() {
     <WikiModal v-model="wikiOpen" :summary="wikiSummary" :loading="wikiLoading" :error="wikiError" />
 
     <!-- 今日/選択日の台詞カード -->
-    <section class="share d-flex h-100 position-relative">
+    <section 
+      class="share d-flex h-100 position-relative"
+      @touchstart="onTouchStart"
+      @touchend="onTouchEnd"
+    >
       <div class="share-area flex-fill df-center" ref="shareAreaVisible">
         <div
           class="main-text-area w-100"
@@ -546,7 +596,7 @@ async function onToggleFavorite() {
           </div>
               </div>
             <div class="d-flex align-items-center gap-2 mt-3">
-              <img src="/logo-yoko.svg" style="height:40px;" alt="icon" />
+              <img src="/logo-yoko.png" style="height:40px;" alt="icon" />
               <div class="text">MakuMark</div>
             </div>
           </div>
