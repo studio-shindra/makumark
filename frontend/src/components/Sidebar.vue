@@ -65,6 +65,14 @@ function goTo(name) {
             設定<IconChevronRight />
           </button>
 
+          <button
+            type="button"
+            class="btn btn-white text-start d-flex justify-content-between align-items-center py-2 px-0"
+            @click="() => { close(); emit('openUpgrade'); }"
+          >
+          プライバシーポリシー<IconChevronRight />
+          </button>
+
           <!-- ver1: 広告を外す（コメントアウト） -->
           <!-- <button
             type="button"
