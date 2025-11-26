@@ -8,6 +8,7 @@ import { Capacitor } from "@capacitor/core";
 import { restoreAuth } from "@/stores/user";
 import { refreshDailyState } from "@/daily";
 import { App as CapacitorApp } from "@capacitor/app";
+import { checkForUpdate } from "@/versionCheck";
 import gsap from 'gsap';
 
 // 起動時の簡易ログ（安全な値のみ）
@@ -71,6 +72,9 @@ function scheduleMidnightRefresh() {
 onMounted(async () => {
   // アプリ初期ロード（ローディング制御）
   initApp();
+
+  // バージョンチェック（App Store の最新版と比較）
+  checkForUpdate();
 
   // フォアグラウンド復帰時に最新化
   CapacitorApp.addListener('resume', () => {
