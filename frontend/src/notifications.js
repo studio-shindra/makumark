@@ -1,6 +1,6 @@
 import { Capacitor } from "@capacitor/core";
 import { LocalNotifications } from "@capacitor/local-notifications";
-import { fetchTodayQuote } from "@/api";
+// 通知本文は固定文言にするため API には依存しない
 
 const H_KEY = "makumark_notif_hour";
 const M_KEY = "makumark_notif_minute";
@@ -18,26 +18,11 @@ function getSavedTime() {
 /* ------------ 共通: 通知文言の組み立て ------------ */
 
 async function buildNotificationContent() {
-  try {
-    const quote = await fetchTodayQuote();
-
-    const author = quote.author_name || "劇作家の言葉";
-    const source = quote.source || "";
-
-    const title = "MakuMark";
-    const body = source
-      ? `${author}の言葉──『${source}』より引用`
-      : `${author}の言葉`;
-
-    return { title, body };
-  } catch (e) {
-    console.error("buildNotificationContent error", e);
-    // 失敗したときのフォールバック
-    return {
-      title: "MakuMark",
-      body: "劇作家の言葉",
-    };
-  }
+  // 常に汎用メッセージを返す（本文が日次の実データに依存しないように）
+  return {
+    title: "MakuMark",
+    body: "今日の名台詞が届きました",
+  };
 }
 
 /* ------------ 共通: 権限要求 ------------ */
