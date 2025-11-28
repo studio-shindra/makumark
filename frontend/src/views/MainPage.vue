@@ -112,6 +112,7 @@ async function onShareImage() {
           format: 'png'
         });
         console.log('[native] Photo saved to library');
+        try { alert('保存しました'); } catch (_) {}
 
         // 3. Instagram Stories にシェア
         // instagram-stories:// URL スキームを使用
@@ -191,6 +192,7 @@ async function onShareImage() {
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
+        try { alert('保存しました'); } catch (_) {}
       }
     }
 

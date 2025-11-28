@@ -5,6 +5,16 @@ import { scheduleDailyNotification } from "@/notifications";
 const LAST_QUOTE_DATE_KEY = "makumark_last_quote_date";
 const NOTIF_ENABLED_KEY = "makumark_notif_enabled";
 
+function isNotificationEnabled() {
+  const v = localStorage.getItem(NOTIF_ENABLED_KEY);
+  if (v === null) {
+    // 既定は ON とする（Settings の初期値と合わせる）
+    localStorage.setItem(NOTIF_ENABLED_KEY, "true");
+    return true;
+  }
+  return v === "true";
+}
+
 function formatDateLocal(d) {
   return (
     d.getFullYear() +
@@ -17,7 +27,8 @@ function formatDateLocal(d) {
 
 // 日次状態を最新化する
 // 1) 今日の引用を取得（常に）
-// 2) 日付が変わっていたら通知を再スケジュール＆日付スタンプ更新
+// 2) 通知ONなら毎回スケジュールを上書き（過去に残った古いスケジュールを確実に置き換える）
+// 3) 日付が変わっていたら日付スタンプ更新
 // 戻り値: { quote, dayChanged }
 export async function refreshDailyState() {
   const todayStr = formatDateLocal(new Date());
@@ -31,16 +42,18 @@ export async function refreshDailyState() {
     console.error("refreshDailyState fetch error", e);
   }
 
+  // 通知ONなら毎回再スケジュール（id=1 を cancel+set するので冪等）
+  const notifEnabled = isNotificationEnabled();
+  if (notifEnabled) {
+    try {
+      await scheduleDailyNotification();
+    } catch (e) {
+      console.warn("refreshDailyState notification reschedule error", e);
+    }
+  }
+
   if (dayChanged) {
     localStorage.setItem(LAST_QUOTE_DATE_KEY, todayStr);
-    const notifEnabled = localStorage.getItem(NOTIF_ENABLED_KEY) === "true";
-    if (notifEnabled) {
-      try {
-        await scheduleDailyNotification();
-      } catch (e) {
-        console.warn("refreshDailyState notification reschedule error", e);
-      }
-    }
   }
 
   return { quote, dayChanged };
