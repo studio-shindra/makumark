@@ -92,7 +92,7 @@ function goTo(name) {
             <a href="https://sk-tokyo.net/" target="_blank" class="logo"><img style="height: 30px;" src="/sk-logo-bk.png" alt=""></a>
           </div>
         </div> -->
-        <div class="tome d-flex align-items-end w-100 justify-content-end">
+        <div class="tome d-flex align-items-end w-100 justify-content-end" style="padding-bottom: calc(4rem + 16px + env(safe-area-inset-bottom, 0px)); position: relative; z-index: 1100;">
           <a href="https://studio-shindra.com/" target="_blank" class="logo"><img style="height: 24px;" src="/shindra-icon-bk.svg" alt=""></a>
         </div>
       </nav>

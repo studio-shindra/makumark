@@ -33,10 +33,10 @@ async function openFavorites() {
   // お気に入りデータを取得
   favorites.value = await fetchFavorites();
   
-  // サイドバーのアニメーションが終わってからモーダルを開く（少し遅延）
+  // サイドバーのアニメーションが終わってからモーダルを開く(少し遅延)
   setTimeout(() => {
     isFavoriteOpen.value = true;
-  }, 500); // サイドバーのアニメーション時間（0.3s）に合わせる
+  }, 300); // サイドバーのアニメーション時間(0.3s)に合わせる
 }
 
 function openSettings() {
@@ -47,6 +47,11 @@ function openSettings() {
   setTimeout(() => {
     isSettingsOpen.value = true;
   }, 350);
+}
+
+function closeSettings() {
+  isSettingsOpen.value = false;
+  // 設定が閉じた後もサイドバーは閉じたままにする
 }
 
 function openPrivacy() {
@@ -143,11 +148,13 @@ defineExpose({
 
     <!-- 設定モーダル -->
     <BaseModal v-model="isSettingsOpen">
-      <Settings />
+      <Settings v-model="isSettingsOpen" />
     </BaseModal>
 
     <!-- プライバシーポリシーモーダル -->
-    <PrivacyModal v-model="isPrivacyOpen" />
+    <BaseModal v-model="isPrivacyOpen">
+      <PrivacyModal />
+    </BaseModal>
 
     <!-- ver1: プレミアムモーダル（コメントアウト） -->
     <!-- <BaseModal v-model="isUpgradeOpen">

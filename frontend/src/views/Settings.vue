@@ -3,6 +3,12 @@ import { ref, onMounted, watch, computed } from "vue";
 import { scheduleDailyNotification, showTestNotification, cancelDailyNotification } from "@/notifications";
 import AccountSync from "@/components/AccountSync.vue";
 
+const props = defineProps({
+  modelValue: { type: Boolean, default: false },
+});
+
+const emit = defineEmits(['update:modelValue']);
+
 const hour = ref(9);
 const minute = ref(0);
 const message = ref("");
@@ -56,6 +62,9 @@ function saveTime() {
   if (isNotificationEnabled.value) {
     scheduleDailyNotification();
   }
+  
+  // モーダルを閉じる
+  emit('update:modelValue', false);
 }
 
 function toggleNotification() {
