@@ -427,16 +427,25 @@ async function onSelectDay(day) {
   }
 }
 
-// いいねトグル
+// いいねトグル (楽観的UI: 即座に更新、裏で同期)
 async function onToggleFavorite() {
   if (!quote.value) return;
   try {
     const isCampaign = quote.value.is_campaign || false;
     const id = isCampaign ? quote.value.campaign_id : quote.value.id;
     
-    const res = await toggleFavorite(id, isCampaign);
-    quote.value.liked = res.liked;
-    quote.value.like_count = res.like_count;
+    // 楽観的UI: 先にローカル状態を更新
+    const wasLiked = quote.value.liked;
+    quote.value.liked = !wasLiked;
+    quote.value.like_count = (quote.value.like_count || 0) + (wasLiked ? -1 : 1);
+    
+    // 裏でサーバー同期（awaitしないでfire-and-forget）
+    toggleFavorite(id, isCampaign).catch(e => {
+      console.error("favorite sync error", e);
+      // エラー時はロールバック
+      quote.value.liked = wasLiked;
+      quote.value.like_count = (quote.value.like_count || 0) + (wasLiked ? 1 : -1);
+    });
   } catch (e) {
     console.error("favorite error", e);
   }

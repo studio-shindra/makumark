@@ -45,19 +45,59 @@ export async function fetchTodayQuote() {
   if (!getAuthToken()) {
     params.client_id = getClientId();
   }
-  const res = await api.get("/quotes/today/", { params });
-  return res.data;
+  
+  // キャッシュキー
+  const cacheKey = 'makumark_quote_today';
+  
+  try {
+    // ネットワークから取得
+    const res = await api.get("/quotes/today/", { params });
+    const data = res.data;
+    
+    // キャッシュに保存（日付情報も一緒に）
+    const cache = {
+      data,
+      cachedAt: new Date().toISOString(),
+      date: data.publish_date || new Date().toISOString().split('T')[0]
+    };
+    localStorage.setItem(cacheKey, JSON.stringify(cache));
+    
+    return data;
+  } catch (e) {
+    // オフライン時はキャッシュから取得
+    console.warn('fetchTodayQuote: network error, using cache', e);
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) {
+      try {
+        const { data } = JSON.parse(cached);
+        return data;
+      } catch (parseErr) {
+        console.error('cache parse error', parseErr);
+      }
+    }
+    // キャッシュもない場合はエラーをthrow
+    throw e;
+  }
 }
 
-// いいねトグル
+// いいねトグル (楽観的UI対応: 即座にレスポンスを返し、裏で同期)
 export async function toggleFavorite(quoteId, isCampaign = false) {
   const data = { is_campaign: isCampaign };
   // Token がない場合のみ client_id を送る
   if (!getAuthToken()) {
     data.client_id = getClientId();
   }
-  const res = await api.post(`/quotes/${quoteId}/toggle-favorite/`, data);
-  return res.data; // { liked: true/false, like_count: N }
+  
+  // サーバーに送信（await せずに裏で実行）
+  const syncPromise = api.post(`/quotes/${quoteId}/toggle-favorite/`, data)
+    .catch(e => {
+      console.error('toggleFavorite sync error:', e);
+      // エラーでもUI更新は維持（UXを損なわない）
+    });
+  
+  // 即座にダミーレスポンスを返す（実際の値は呼び出し元で楽観的に更新）
+  // 注: 実際のサーバーレスポンスは無視（楽観的UIパターン）
+  return syncPromise.then(res => res?.data || {});
 }
 
 // 指定日付の台詞を取得
@@ -67,8 +107,39 @@ export async function fetchQuoteByDate(dateStr) {
   if (!getAuthToken()) {
     params.client_id = getClientId();
   }
-  const res = await api.get("/quotes/by-date/", { params });
-  return res.data;
+  
+  // キャッシュキー
+  const cacheKey = `makumark_quote_${dateStr}`;
+  
+  try {
+    // ネットワークから取得
+    const res = await api.get("/quotes/by-date/", { params });
+    const data = res.data;
+    
+    // キャッシュに保存
+    const cache = {
+      data,
+      cachedAt: new Date().toISOString(),
+      date: dateStr
+    };
+    localStorage.setItem(cacheKey, JSON.stringify(cache));
+    
+    return data;
+  } catch (e) {
+    // オフライン時はキャッシュから取得
+    console.warn(`fetchQuoteByDate(${dateStr}): network error, using cache`, e);
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) {
+      try {
+        const { data } = JSON.parse(cached);
+        return data;
+      } catch (parseErr) {
+        console.error('cache parse error', parseErr);
+      }
+    }
+    // キャッシュもない場合はエラーをthrow
+    throw e;
+  }
 }
 
 // いいね一覧を取得
