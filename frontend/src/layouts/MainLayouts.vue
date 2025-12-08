@@ -84,7 +84,8 @@ async function jumpToDate(dateStr) {
     if (!ok) return;
     
     // ネイティブ環境ならここでインタースティシャル表示
-    await showPastQuoteInterstitial();
+    const unlocked = await showPastQuoteInterstitial();
+    if (!unlocked) return;
   }
   
   // 2. モーダルを閉じる

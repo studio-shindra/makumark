@@ -373,10 +373,11 @@ async function onSelectDay(day) {
   // 今日じゃなければ広告ゲート（ただしプレミアムはスキップ）
   if (day.value !== todayStr && !isPremium.value) {
     const ok = window.confirm(
-      "過去の台詞を見るには広告が表示されます。続けますか？"
+      "広告を見ることで、全ての名台詞を1日だけ見ることができます。"
     );
     if (!ok) return;
-    await showPastQuoteInterstitial();
+    const unlocked = await showPastQuoteInterstitial();
+    if (!unlocked) return; // リワード未完了なら遷移しない
   }
 
   // アニメーションシーケンス開始

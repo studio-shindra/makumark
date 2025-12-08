@@ -7,7 +7,33 @@ import {
 import { isPremium } from "@/stores/user";
 
 const bannerId = import.meta.env.VITE_ADMOB_BANNER_ID;
-const interstitialId = import.meta.env.VITE_ADMOB_INTERSTITIAL_ID;
+const rewardId = import.meta.env.VITE_ADMOB_REWARD_ID;
+
+// 過去投稿解放フラグ（当日限り有効）
+const PAST_UNLOCK_KEY = "makumark_past_unlocked";
+
+function todayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function isPastUnlocked() {
+  try {
+    const val = localStorage.getItem(PAST_UNLOCK_KEY);
+    return val === todayStr();
+  } catch (e) {
+    console.warn("[AdMob] read past unlock flag failed", e);
+    return false;
+  }
+}
+
+function setPastUnlocked() {
+  try {
+    localStorage.setItem(PAST_UNLOCK_KEY, todayStr());
+  } catch (e) {
+    console.warn("[AdMob] failed to set past unlock flag", e);
+  }
+}
 
 let bannerVisible = false;
 
@@ -32,27 +58,29 @@ function canUseAdMob() {
   return true;
 }
 
-function canUseInterstitial() {
-  console.log('[AdMob] interstitial check: isPremium =', isPremium.value);
-  console.log('[AdMob] interstitial check: isNative =', Capacitor.isNativePlatform());
-  console.log('[AdMob] interstitial check: interstitialId =', interstitialId);
+function canUseReward() {
+  console.log('[AdMob] reward check: isPremium =', isPremium.value);
+  console.log('[AdMob] reward check: isNative =', Capacitor.isNativePlatform());
+  console.log('[AdMob] reward check: rewardId =', rewardId);
 
-  // プレミアムなら広告を表示しない
   if (isPremium.value) {
-    console.log('[AdMob] interstitial skip: premium user');
+    console.log('[AdMob] reward skip: premium user');
     return false;
   }
-  
+  if (isPastUnlocked()) {
+    console.log('[AdMob] reward skip: already unlocked');
+    return false;
+  }
   if (!Capacitor.isNativePlatform()) {
-    console.log('[AdMob] interstitial skip: not native platform');
+    console.log('[AdMob] reward skip: not native platform');
     return false;
   }
-  if (!interstitialId) {
-    console.log('[AdMob] interstitial skip: no interstitialId');
+  if (!rewardId) {
+    console.log('[AdMob] reward skip: no rewardId');
     return false;
   }
-  if (!interstitialId.includes("/")) {
-    console.warn("[AdMob] interstitial id looks invalid (expected ad unit id with '/'). Current value:", interstitialId);
+  if (!rewardId.includes("/")) {
+    console.warn("[AdMob] reward id looks invalid (expected ad unit id with '/'). Current value:", rewardId);
     return false;
   }
   return true;
@@ -125,24 +153,41 @@ export async function hideBanner() {
   }
 }
 
+// 過去解放用のリワードゲート（名前は互換のためそのまま）
 export async function showPastQuoteInterstitial() {
-  console.log('[AdMob] showPastQuoteInterstitial() called');
+  console.log('[AdMob] showPastQuoteInterstitial() called (reward gate)');
 
-  if (!canUseInterstitial()) {
-    console.log('[AdMob] canUseInterstitial() returned false, skipping');
-    return;
+  // プレミアム or 既に解放済みなら即OK
+  if (isPremium.value || isPastUnlocked()) {
+    console.log('[AdMob] past already unlocked or premium, skip ad');
+    return true;
+  }
+
+  // リワードが使えない環境は無料解放にする
+  if (!canUseReward()) {
+    console.log('[AdMob] reward unavailable, unlock without ad');
+    setPastUnlocked();
+    return true;
   }
 
   try {
     await initAdMob();
-    console.log('[AdMob] preparing interstitial...');
-    await AdMob.prepareInterstitial({
-      adId: interstitialId,
+    console.log('[AdMob] preparing reward video ad...');
+    await AdMob.prepareRewardVideoAd({
+      adId: rewardId,
     });
-    console.log('[AdMob] showing interstitial...');
-    await AdMob.showInterstitial();
-    console.log('[AdMob] interstitial shown successfully');
+    console.log('[AdMob] showing reward video ad...');
+    const rewardItem = await AdMob.showRewardVideoAd();
+    console.log('[AdMob] reward received:', rewardItem);
+
+    setPastUnlocked();
+    return true;
   } catch (e) {
-    console.error('[AdMob] interstitial failed:', e);
+    console.error('[AdMob] reward ad failed or canceled:', e);
+    return false;
   }
+}
+
+export function hasUnlockedPastQuotes() {
+  return isPremium.value || isPastUnlocked();
 }

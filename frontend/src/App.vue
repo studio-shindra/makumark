@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import dayjs from "dayjs";
 import { showFooterBanner, showPastQuoteInterstitial } from "@/admob";
 import { initPurchases } from "@/iap";
 import { LocalNotifications } from "@capacitor/local-notifications";
@@ -20,6 +21,14 @@ const router = useRouter();
 const isSidebarOpen = ref(false);
 const isReady = ref(false); // データ準備完了フラグ
 const showLoader = ref(true); // ローダー表示制御（isReady後1秒で消す）
+
+function forceTodayRoute() {
+  const today = dayjs().format("YYYY-MM-DD");
+  if (route.name !== "home") return;
+  const current = typeof route.query.date === "string" ? route.query.date : null;
+  if (current === today) return;
+  router.replace({ name: "home", query: { ...route.query, date: today } });
+}
 
 async function ensureNotificationPermission() {
   if (!Capacitor.isNativePlatform()) return;
@@ -43,6 +52,7 @@ async function initApp() {
   try {
     // 日次最新化（引用取得 & 日付跨ぎなら通知再スケジュール）
     await refreshDailyState();
+    forceTodayRoute();
   } catch (e) {
     console.error('initial refresh error', e);
   } finally {
@@ -78,7 +88,9 @@ onMounted(async () => {
 
   // フォアグラウンド復帰時に最新化
   CapacitorApp.addListener('resume', () => {
-    refreshDailyState();
+    refreshDailyState().finally(() => {
+      forceTodayRoute();
+    });
   });
 
   // 真夜中跨ぎ検知
