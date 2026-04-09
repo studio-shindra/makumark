@@ -10,7 +10,14 @@ from rest_framework.authtoken.models import Token
 
 from .models import Quote, Favorite, User
 from .serializers import QuoteSerializer, UserSerializer
+from .apple import (
+    verify_apple_id_token,
+    verify_app_store_receipt,
+    extract_premium_expiry,
+    AppleVerificationError,
+)
 
+from datetime import datetime, timedelta
 from django.db import models, transaction
 import json
 import logging
@@ -41,17 +48,29 @@ class AppleSignInView(APIView):
 
         if not apple_id:
             return Response({"detail": "apple_id is required"}, status=status.HTTP_400_BAD_REQUEST)
+        if not id_token:
+            return Response({"detail": "id_token is required"}, status=status.HTTP_400_BAD_REQUEST)
 
-        # TODO: id_token を Apple に検証（本番環境では必須）
-        # https://developer.apple.com/documentation/sign_in_with_apple/sign_in_with_apple_rest_api/verifying_a_user
-        
+        # Apple に id_token を検証（DEBUG時は SKIP 可能）
+        try:
+            claims = verify_apple_id_token(id_token, expected_sub=apple_id)
+        except AppleVerificationError as e:
+            logger.warning(f"Apple id_token verification failed: {e}")
+            return Response(
+                {"detail": "Invalid id_token"},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        # Apple が返した email を優先（クライアント送信値より信頼できる）
+        verified_email = claims.get("email") or email or ""
+
         try:
             # User を取得または作成
             user, created = User.objects.get_or_create(
                 apple_id=apple_id,
                 defaults={
                     "username": apple_id,
-                    "email": email or "",
+                    "email": verified_email,
                 }
             )
             
@@ -105,41 +124,45 @@ class SubscriptionVerifyView(APIView):
         if not receipt:
             return Response({"detail": "receipt is required"}, status=status.HTTP_400_BAD_REQUEST)
 
-        # TODO: Apple verifyReceipt API に送信
-        # https://developer.apple.com/documentation/appstoreconnectapi/app_store_server_api
-        # または https://buy.itunes.apple.com/verifyReceipt (Sandbox)
-        # 
-        # ここでは簡略的に receipt の存在を確認して is_premium = True とする
-        # 本番環境では必ず Apple に検証する必要がある
-        
+        # Apple /verifyReceipt に送信して検証
         try:
-            # Apple verification (placeholder - implement with actual Apple API)
-            # For now, just mark as premium if receipt is provided
-            is_valid = len(receipt) > 0  # Placeholder validation
-            
-            if is_valid:
-                user = request.user
-                user.is_premium = True
-                # 購読期間は1年とする（実装時は Apple の response から取得）
-                from datetime import datetime, timedelta
-                user.premium_expires_at = timezone.now() + timedelta(days=365)
-                user.save()
-                
-                logger.info(f"User {user.id} marked as premium")
-                
-                serializer = UserSerializer(user)
-                return Response(serializer.data, status=status.HTTP_200_OK)
-            else:
-                return Response(
-                    {"detail": "Invalid receipt"},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
+            body = verify_app_store_receipt(receipt)
+        except AppleVerificationError as e:
+            logger.warning(f"Receipt verification failed for user={request.user.id}: {e}")
+            return Response(
+                {"detail": "Invalid receipt"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         except Exception as e:
-            logger.error(f"Subscription verify error: {str(e)}")
+            logger.error(f"Receipt verification unexpected error: {e}")
             return Response(
                 {"detail": "Verification failed"},
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
+        # 有効期限の取得（自動更新サブスクの場合）
+        expiry_ms = extract_premium_expiry(body)
+        user = request.user
+        user.is_premium = True
+        if expiry_ms:
+            user.premium_expires_at = datetime.fromtimestamp(
+                expiry_ms / 1000, tz=timezone.utc
+            )
+        else:
+            # 買い切りまたは情報なし → 1年付与（DEBUGスキップ時のフォールバック含む）
+            user.premium_expires_at = timezone.now() + timedelta(days=365)
+
+        try:
+            user.save(update_fields=["is_premium", "premium_expires_at"])
+        except Exception as e:
+            logger.error(f"Failed to save premium for user={user.id}: {e}")
+            return Response(
+                {"detail": "Failed to save premium status"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        logger.info(f"User {user.id} marked as premium (expires={user.premium_expires_at})")
+        return Response(UserSerializer(user).data, status=status.HTTP_200_OK)
 
 
 class TodayQuoteView(APIView):
@@ -267,28 +290,19 @@ class ToggleFavoriteView(APIView):
 
             return Response({"liked": liked, "like_count": like_count})
         
-        # Quote のお気に入り（既存ロジック）
-        try:
-            quote = Quote.objects.get(pk=pk)
-        except Quote.DoesNotExist:
-            return Response({"detail": "Quote not found"}, status=status.HTTP_404_NOT_FOUND)
-
+        # Quote のお気に入り
         with transaction.atomic():
+            try:
+                quote = Quote.objects.select_for_update().get(pk=pk)
+            except Quote.DoesNotExist:
+                return Response({"detail": "Quote not found"}, status=status.HTTP_404_NOT_FOUND)
+
             # 認証済みユーザーの場合
             if request.user.is_authenticated:
                 fav, created = Favorite.objects.get_or_create(
                     quote=quote,
                     user=request.user,
                 )
-                if created:
-                    Quote.objects.filter(pk=quote.pk).update(like_count=models.F("like_count") + 1)
-                    liked = True
-                else:
-                    fav.delete()
-                    Quote.objects.filter(pk=quote.pk).update(like_count=models.F("like_count") - 1)
-                    liked = False
-                    
-            # 未認証の場合（client_id を使用）
             else:
                 client_id = (
                     request.data.get("client_id")
@@ -296,23 +310,30 @@ class ToggleFavoriteView(APIView):
                     or request.query_params.get("client_id")
                 )
                 if not client_id:
-                    return Response({"detail": "client_id or authentication required"}, status=status.HTTP_400_BAD_REQUEST)
+                    return Response(
+                        {"detail": "client_id or authentication required"},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                # client_id 長さチェック（Favorite.client_id は max_length=64）
+                if len(client_id) > 64:
+                    return Response({"detail": "invalid client_id"}, status=status.HTTP_400_BAD_REQUEST)
 
                 fav, created = Favorite.objects.get_or_create(
                     quote=quote,
                     client_id=client_id,
                     user=None,
                 )
-                if created:
-                    Quote.objects.filter(pk=quote.pk).update(like_count=models.F("like_count") + 1)
-                    liked = True
-                else:
-                    fav.delete()
-                    Quote.objects.filter(pk=quote.pk).update(like_count=models.F("like_count") - 1)
-                    liked = False
 
-            # 最新の like_count を再取得
-            quote.refresh_from_db(fields=["like_count"])
+            if created:
+                quote.like_count = (quote.like_count or 0) + 1
+                liked = True
+            else:
+                fav.delete()
+                # underflow ガード
+                quote.like_count = max(0, (quote.like_count or 0) - 1)
+                liked = False
+
+            quote.save(update_fields=["like_count"])
 
         return Response({"liked": liked, "like_count": quote.like_count})
 
@@ -329,20 +350,30 @@ class FavoriteListView(APIView):
     def get(self, request, format=None):
         # 認証済みユーザーの場合
         if request.user.is_authenticated:
-            favorites = Favorite.objects.filter(user=request.user).select_related("quote").order_by("-created_at")
+            favorites = (
+                Favorite.objects
+                .filter(user=request.user, quote__isnull=False)
+                .select_related("quote")
+                .order_by("-created_at")
+            )
         # 未認証の場合（client_id を使用）
         else:
             client_id = get_client_id_from_request(request)
             if not client_id:
                 return Response({"detail": "client_id or authentication required"}, status=status.HTTP_400_BAD_REQUEST)
-            favorites = Favorite.objects.filter(client_id=client_id, user=None).select_related("quote").order_by("-created_at")
-
-        quotes = [f.quote for f in favorites]
+            favorites = (
+                Favorite.objects
+                .filter(client_id=client_id, user=None, quote__isnull=False)
+                .select_related("quote")
+                .order_by("-created_at")
+            )
 
         # 各 quote ごとの liked フラグは true 固定（自分が押した一覧なので）
         data = []
-        for q in quotes:
-            s = QuoteSerializer(q, context={"request": request}).data
+        for f in favorites:
+            if f.quote is None:
+                continue
+            s = QuoteSerializer(f.quote, context={"request": request}).data
             s["liked"] = True
             data.append(s)
 

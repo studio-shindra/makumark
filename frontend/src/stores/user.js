@@ -6,14 +6,11 @@ import { hideBanner } from '@/admob';
 export const currentUser = ref(null);
 export const authToken = ref(null);
 
-// 端末ローカルのプレミアムフラグ（サインイン不要で課金可能にするため）
-export const localPremium = ref(
-  localStorage.getItem('mm_is_premium') === '1'
-);
-
-// isPremium: ローカル or サーバのどちらかが true なら OK
-export const isPremium = computed(() => 
-  localPremium.value || currentUser.value?.is_premium || false
+// プレミアム判定はサーバ値（currentUser.is_premium）のみを信頼する。
+// 端末ローカルフラグはセキュリティ上の理由で廃止。
+// 起動時のフラッシュ防止のため、最後の既知サーバ値を localStorage に簡易キャッシュする。
+export const isPremium = computed(() =>
+  currentUser.value?.is_premium === true
 );
 
 export const isAuthenticated = computed(() => !!authToken.value);
@@ -158,18 +155,12 @@ export function logout() {
 }
 
 /**
- * 端末ローカルでプレミアムフラグを立てる（サインイン不要の課金用）
+ * 廃止: localStorage だけで premium 判定するのはセキュリティ上の脆弱性。
+ * 既存呼び出し互換のため関数は残すが、何もしない。
+ * プレミアム化は必ず verifySubscription() でサーバ検証を経ること。
  */
 export function markPremiumLocally() {
-  localPremium.value = true;
-  localStorage.setItem('mm_is_premium', '1');
-  console.log('✅ ローカルプレミアム有効化');
-  // 課金直後に表示中のバナーを即時非表示
-  try {
-    hideBanner();
-  } catch (e) {
-    // noop
-  }
+  console.warn('markPremiumLocally() is deprecated; use verifySubscription() instead.');
 }
 
 /**

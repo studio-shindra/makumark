@@ -1,10 +1,30 @@
 // src/versionCheck.js
 import { Capacitor } from '@capacitor/core';
 import { Browser } from '@capacitor/browser';
+import { App } from '@capacitor/app';
 
-const CURRENT_VERSION = import.meta.env.VITE_APP_VERSION || '1.0.0';
+const FALLBACK_VERSION = import.meta.env.VITE_APP_VERSION || '1.0.0';
 const APP_STORE_URL = 'https://apps.apple.com/jp/app/makumark/id6739225748';
 const LOOKUP_URL = 'https://itunes.apple.com/lookup?bundleId=com.studio-shindra.makumark&country=jp';
+
+/**
+ * 実機ネイティブから現在のアプリバージョンを取得する。
+ * Web/開発時は VITE_APP_VERSION にフォールバック。
+ * これによって Xcode の MARKETING_VERSION を上げるだけで JS 側のバージョンも追従する
+ * （以前は .env の手動更新が必要で、忘れるとアップデートモーダルが出続けるバグがあった）。
+ */
+async function getCurrentVersion() {
+  if (!Capacitor.isNativePlatform()) {
+    return FALLBACK_VERSION;
+  }
+  try {
+    const info = await App.getInfo();
+    return info?.version || FALLBACK_VERSION;
+  } catch (e) {
+    console.warn('App.getInfo() failed, falling back to env version', e);
+    return FALLBACK_VERSION;
+  }
+}
 
 // 簡易セマンティックバージョン比較（"1.0.3" > "1.0.2" かどうか）
 function isNewerVersion(remote, local) {
@@ -41,14 +61,15 @@ export async function checkForUpdate() {
       return;
     }
 
-    if (!CURRENT_VERSION) {
-      console.warn('version check: CURRENT_VERSION not set');
+    const currentVersion = await getCurrentVersion();
+    if (!currentVersion) {
+      console.warn('version check: currentVersion not available');
       return;
     }
 
-    if (!isNewerVersion(latestVersion, CURRENT_VERSION)) {
+    if (!isNewerVersion(latestVersion, currentVersion)) {
       // 自分の方が新しい or 同じ → 何もしない
-      console.log(`version check: current ${CURRENT_VERSION} is up to date (latest: ${latestVersion})`);
+      console.log(`version check: current ${currentVersion} is up to date (latest: ${latestVersion})`);
       return;
     }
 

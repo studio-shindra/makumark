@@ -36,13 +36,10 @@ class QuoteSerializer(serializers.ModelSerializer):
         
         # author_nameとsourceが空の場合、tagsから作者名を取得
         if not data.get('author_name') and not data.get('source'):
-            tags = data.get('tags', '')
-            if tags:
-                # tagsが「シェイクスピア」のような形式の場合、author_nameに設定
-                tag_list = [t.strip() for t in tags.split(',')]
-                if tag_list:
-                    # 最初のタグをauthor_nameとして使用
-                    data['author_name'] = tag_list[0]
+            tags = data.get('tags') or ''
+            tag_list = [t.strip() for t in tags.split(',') if t.strip()]
+            if tag_list:
+                data['author_name'] = tag_list[0]
         
         # データベースにauthor_nameとsourceが存在することを確認
         # 空文字列の場合はNoneにしない（フロントエンドで扱いやすくするため）

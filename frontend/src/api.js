@@ -38,106 +38,91 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// オフラインキャッシュ最大保持時間（24時間）
+const CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+
+function _readCache(cacheKey, expectedDateStr) {
+  const cached = localStorage.getItem(cacheKey);
+  if (!cached) return null;
+  try {
+    const { data, cachedAt, date } = JSON.parse(cached);
+    if (!cachedAt) return null;
+    const age = Date.now() - new Date(cachedAt).getTime();
+    if (age > CACHE_MAX_AGE_MS) {
+      localStorage.removeItem(cacheKey);
+      return null;
+    }
+    if (expectedDateStr && date && date !== expectedDateStr) {
+      return null;
+    }
+    return data;
+  } catch (e) {
+    console.error('cache parse error', e);
+    return null;
+  }
+}
+
 // 今日の1本を取得
 export async function fetchTodayQuote() {
   const params = {};
-  // Token がない場合のみ client_id を送る
   if (!getAuthToken()) {
     params.client_id = getClientId();
   }
-  
-  // キャッシュキー
+
   const cacheKey = 'makumark_quote_today';
-  
+  const todayStr = new Date().toISOString().split('T')[0];
+
   try {
-    // ネットワークから取得
     const res = await api.get("/quotes/today/", { params });
     const data = res.data;
-    
-    // キャッシュに保存（日付情報も一緒に）
     const cache = {
       data,
       cachedAt: new Date().toISOString(),
-      date: data.publish_date || new Date().toISOString().split('T')[0]
+      date: data.publish_date || todayStr,
     };
     localStorage.setItem(cacheKey, JSON.stringify(cache));
-    
     return data;
   } catch (e) {
-    // オフライン時はキャッシュから取得
     console.warn('fetchTodayQuote: network error, using cache', e);
-    const cached = localStorage.getItem(cacheKey);
-    if (cached) {
-      try {
-        const { data } = JSON.parse(cached);
-        return data;
-      } catch (parseErr) {
-        console.error('cache parse error', parseErr);
-      }
-    }
-    // キャッシュもない場合はエラーをthrow
+    const data = _readCache(cacheKey, todayStr);
+    if (data) return data;
     throw e;
   }
 }
 
-// いいねトグル (楽観的UI対応: 即座にレスポンスを返し、裏で同期)
+// いいねトグル — サーバ応答を必ず await して返す（呼び出し元でロールバック判定する）
 export async function toggleFavorite(quoteId, isCampaign = false) {
-  const data = { is_campaign: isCampaign };
-  // Token がない場合のみ client_id を送る
+  const body = { is_campaign: isCampaign };
   if (!getAuthToken()) {
-    data.client_id = getClientId();
+    body.client_id = getClientId();
   }
-  
-  // サーバーに送信（await せずに裏で実行）
-  const syncPromise = api.post(`/quotes/${quoteId}/toggle-favorite/`, data)
-    .catch(e => {
-      console.error('toggleFavorite sync error:', e);
-      // エラーでもUI更新は維持（UXを損なわない）
-    });
-  
-  // 即座にダミーレスポンスを返す（実際の値は呼び出し元で楽観的に更新）
-  // 注: 実際のサーバーレスポンスは無視（楽観的UIパターン）
-  return syncPromise.then(res => res?.data || {});
+  const res = await api.post(`/quotes/${quoteId}/toggle-favorite/`, body);
+  return res.data; // { liked, like_count }
 }
 
 // 指定日付の台詞を取得
 export async function fetchQuoteByDate(dateStr) {
   const params = { date: dateStr };
-  // Token がない場合のみ client_id を送る
   if (!getAuthToken()) {
     params.client_id = getClientId();
   }
-  
-  // キャッシュキー
+
   const cacheKey = `makumark_quote_${dateStr}`;
-  
+
   try {
-    // ネットワークから取得
     const res = await api.get("/quotes/by-date/", { params });
     const data = res.data;
-    
-    // キャッシュに保存
     const cache = {
       data,
       cachedAt: new Date().toISOString(),
-      date: dateStr
+      date: dateStr,
     };
     localStorage.setItem(cacheKey, JSON.stringify(cache));
-    
     return data;
   } catch (e) {
-    // オフライン時はキャッシュから取得
     console.warn(`fetchQuoteByDate(${dateStr}): network error, using cache`, e);
-    const cached = localStorage.getItem(cacheKey);
-    if (cached) {
-      try {
-        const { data } = JSON.parse(cached);
-        return data;
-      } catch (parseErr) {
-        console.error('cache parse error', parseErr);
-      }
-    }
-    // キャッシュもない場合はエラーをthrow
+    const data = _readCache(cacheKey, dateStr);
+    if (data) return data;
     throw e;
   }
 }

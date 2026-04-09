@@ -3,8 +3,41 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from django.utils import timezone
-from datetime import date
+from datetime import date, timedelta
 from .models import Campaign, QuoteView, QuoteClick, CampaignView, CampaignClick
+
+# tracking 入力の上限
+_MAX_CLIENT_ID_LEN = 100
+_DEDUP_WINDOW = timedelta(hours=24)
+_ALLOWED_QUOTE_ACTIONS = {"wiki", "amazon", "share"}
+_ALLOWED_CAMPAIGN_ACTIONS = {"official", "sns", "share"}
+
+
+def _validated_id_and_client(request, id_field):
+    """共通: id_field を int 化し、client_id を長さチェックして返す。失敗時は (None, None, error_response)."""
+    raw_id = request.data.get(id_field)
+    client_id = request.data.get("client_id")
+
+    if raw_id is None or client_id is None:
+        return None, None, Response(
+            {"error": f"{id_field} and client_id are required"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    try:
+        obj_id = int(raw_id)
+        if obj_id <= 0:
+            raise ValueError
+    except (TypeError, ValueError):
+        return None, None, Response(
+            {"error": f"invalid {id_field}"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    if not isinstance(client_id, str) or not client_id or len(client_id) > _MAX_CLIENT_ID_LEN:
+        return None, None, Response(
+            {"error": "invalid client_id"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    return obj_id, client_id, None
 from .serializers import (
     CampaignSerializer,
     QuoteViewSerializer,
@@ -30,86 +63,65 @@ def active_campaigns(request):
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def track_campaign_view(request):
-    """Campaign 表示を記録"""
-    campaign_id = request.data.get('campaign_id')
-    client_id = request.data.get('client_id')
-    
-    if not campaign_id or not client_id:
-        return Response(
-            {'error': 'campaign_id and client_id are required'},
-            status=status.HTTP_400_BAD_REQUEST
-        )
-    
+    """Campaign 表示を記録（24時間以内の重複は無視）"""
+    campaign_id, client_id, err = _validated_id_and_client(request, 'campaign_id')
+    if err:
+        return err
+
     try:
         campaign = Campaign.objects.get(pk=campaign_id)
-        CampaignView.objects.create(
-            campaign=campaign,
-            client_id=client_id
-        )
-        return Response({'status': 'ok'}, status=status.HTTP_201_CREATED)
     except Campaign.DoesNotExist:
-        return Response(
-            {'error': 'Campaign not found'},
-            status=status.HTTP_404_NOT_FOUND
-        )
+        return Response({'error': 'Campaign not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    cutoff = timezone.now() - _DEDUP_WINDOW
+    if not CampaignView.objects.filter(
+        campaign=campaign, client_id=client_id, viewed_at__gte=cutoff
+    ).exists():
+        CampaignView.objects.create(campaign=campaign, client_id=client_id)
+    return Response({'status': 'ok'}, status=status.HTTP_201_CREATED)
 
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def track_campaign_click(request):
     """Campaign クリックを記録"""
-    campaign_id = request.data.get('campaign_id')
-    client_id = request.data.get('client_id')
+    campaign_id, client_id, err = _validated_id_and_client(request, 'campaign_id')
+    if err:
+        return err
     action = request.data.get('action', 'official')
-    
-    if not campaign_id or not client_id:
-        return Response(
-            {'error': 'campaign_id and client_id are required'},
-            status=status.HTTP_400_BAD_REQUEST
-        )
-    
+    if action not in _ALLOWED_CAMPAIGN_ACTIONS:
+        return Response({'error': 'invalid action'}, status=status.HTTP_400_BAD_REQUEST)
+
     try:
         campaign = Campaign.objects.get(pk=campaign_id)
-        CampaignClick.objects.create(
-            campaign=campaign,
-            client_id=client_id,
-            action=action
-        )
-        return Response({'status': 'ok'}, status=status.HTTP_201_CREATED)
     except Campaign.DoesNotExist:
-        return Response(
-            {'error': 'Campaign not found'},
-            status=status.HTTP_404_NOT_FOUND
-        )
+        return Response({'error': 'Campaign not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    CampaignClick.objects.create(campaign=campaign, client_id=client_id, action=action)
+    return Response({'status': 'ok'}, status=status.HTTP_201_CREATED)
 
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def track_quote_view(request):
-    """Quote 表示を記録"""
+    """Quote 表示を記録（24時間以内の重複は無視）"""
     from quotes.models import Quote
-    
-    quote_id = request.data.get('quote_id')
-    client_id = request.data.get('client_id')
-    
-    if not quote_id or not client_id:
-        return Response(
-            {'error': 'quote_id and client_id are required'},
-            status=status.HTTP_400_BAD_REQUEST
-        )
-    
+
+    quote_id, client_id, err = _validated_id_and_client(request, 'quote_id')
+    if err:
+        return err
+
     try:
         quote = Quote.objects.get(pk=quote_id)
-        QuoteView.objects.create(
-            quote=quote,
-            client_id=client_id
-        )
-        return Response({'status': 'ok'}, status=status.HTTP_201_CREATED)
     except Quote.DoesNotExist:
-        return Response(
-            {'error': 'Quote not found'},
-            status=status.HTTP_404_NOT_FOUND
-        )
+        return Response({'error': 'Quote not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    cutoff = timezone.now() - _DEDUP_WINDOW
+    if not QuoteView.objects.filter(
+        quote=quote, client_id=client_id, viewed_at__gte=cutoff
+    ).exists():
+        QuoteView.objects.create(quote=quote, client_id=client_id)
+    return Response({'status': 'ok'}, status=status.HTTP_201_CREATED)
 
 
 @api_view(['POST'])
@@ -117,36 +129,24 @@ def track_quote_view(request):
 def track_quote_click(request):
     """Quote 内アクション（Wiki/Amazon/Share）を記録"""
     from quotes.models import Quote
-    
-    quote_id = request.data.get('quote_id')
-    client_id = request.data.get('client_id')
+
+    quote_id, client_id, err = _validated_id_and_client(request, 'quote_id')
+    if err:
+        return err
     action = request.data.get('action')
-    
-    if not quote_id or not client_id or not action:
-        return Response(
-            {'error': 'quote_id, client_id, and action are required'},
-            status=status.HTTP_400_BAD_REQUEST
-        )
-    
-    if action not in ['wiki', 'amazon', 'share']:
+    if action not in _ALLOWED_QUOTE_ACTIONS:
         return Response(
             {'error': 'action must be wiki, amazon, or share'},
-            status=status.HTTP_400_BAD_REQUEST
+            status=status.HTTP_400_BAD_REQUEST,
         )
-    
+
     try:
         quote = Quote.objects.get(pk=quote_id)
-        QuoteClick.objects.create(
-            quote=quote,
-            client_id=client_id,
-            action=action
-        )
-        return Response({'status': 'ok'}, status=status.HTTP_201_CREATED)
     except Quote.DoesNotExist:
-        return Response(
-            {'error': 'Quote not found'},
-            status=status.HTTP_404_NOT_FOUND
-        )
+        return Response({'error': 'Quote not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    QuoteClick.objects.create(quote=quote, client_id=client_id, action=action)
+    return Response({'status': 'ok'}, status=status.HTTP_201_CREATED)
 
 
 @api_view(['GET'])

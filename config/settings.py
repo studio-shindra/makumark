@@ -31,6 +31,18 @@ else:
 csrf_origins = os.environ.get("CSRF_TRUSTED_ORIGINS", "")
 CSRF_TRUSTED_ORIGINS = [o for o in csrf_origins.split(",") if o]
 
+# Apple Sign-In / IAP
+APPLE_CLIENT_ID = os.environ.get("APPLE_CLIENT_ID", "")  # iOS Bundle ID, e.g. com.studioshindra.makumark
+APPLE_SHARED_SECRET = os.environ.get("APPLE_SHARED_SECRET", "")  # App-Specific Shared Secret for /verifyReceipt
+APPLE_IAP_PRODUCT_IDS = [
+    p.strip() for p in os.environ.get(
+        "APPLE_IAP_PRODUCT_IDS",
+        "com.studioshindra.makumark.premium",
+    ).split(",") if p.strip()
+]
+# DEBUG時のみ Apple 検証をスキップ可能（ローカル開発用）
+APPLE_VERIFY_SKIP_IN_DEBUG = os.environ.get("APPLE_VERIFY_SKIP_IN_DEBUG", "1") == "1"
+
 
 
 
@@ -146,6 +158,13 @@ REST_FRAMEWORK = {
     ],
 }
 
-# ========== 開発環境 ========== #
-
-CORS_ALLOW_ALL_ORIGINS = True
+# ========== セキュリティヘッダー（本番時） ========== #
+if not DEBUG:
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    X_FRAME_OPTIONS = "DENY"
+    SECURE_HSTS_SECONDS = 60 * 60 * 24 * 30
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True

@@ -1,28 +1,44 @@
 <script setup>
 import { ref } from "vue";
-import { isPremium, isAuthenticated, verifySubscription, markPremiumLocally } from "@/stores/user";
+import { isPremium, isAuthenticated, verifySubscription, signInWithApple, fetchMe } from "@/stores/user";
 import { purchasePremium, restorePurchases } from "@/iap";
 
 const emit = defineEmits(['success', 'error']);
 
 const isProcessing = ref(false);
 
+async function ensureSignedIn() {
+  if (isAuthenticated.value) return true;
+  try {
+    await signInWithApple();
+    return isAuthenticated.value;
+  } catch (e) {
+    console.error('sign-in required for purchase failed:', e);
+    return false;
+  }
+}
+
 async function handlePurchase() {
   if (isProcessing.value) return;
   isProcessing.value = true;
-  
+
   try {
+    // 課金前にサインイン必須（receipt をユーザーに紐付けるため）
+    const ok = await ensureSignedIn();
+    if (!ok) {
+      emit('error', '❌ プレミアム購入にはサインインが必要です');
+      return;
+    }
+
     // IAP購入を実行
     const result = await purchasePremium();
-    
-    // まずローカルでプレミアムフラグを立てる（サインイン不要）
-    markPremiumLocally();
-    
-    // もしサインイン済みなら、サーバにも送信して紐付け
-    if (isAuthenticated.value && result.receipt) {
-      await verifySubscription(result.receipt);
+    if (!result?.receipt) {
+      emit('error', '❌ レシートを取得できませんでした');
+      return;
     }
-    
+
+    // サーバ検証（必須）
+    await verifySubscription(result.receipt);
     emit('success', '✅ プレミアム購読が有効になりました！');
   } catch (error) {
     console.error(error);
@@ -39,15 +55,26 @@ async function handlePurchase() {
 async function handleRestore() {
   if (isProcessing.value) return;
   isProcessing.value = true;
-  
+
   try {
-    // IAP復元を実行
+    const ok = await ensureSignedIn();
+    if (!ok) {
+      emit('error', '❌ 復元にはサインインが必要です');
+      return;
+    }
+
     const result = await restorePurchases();
-    
-    if (result.isPremium) {
-      // ローカルでプレミアムフラグを立てる
-      markPremiumLocally();
+    if (result?.receipt) {
+      await verifySubscription(result.receipt);
       emit('success', '✅ 購入を復元しました');
+    } else if (result?.isPremium) {
+      // receipt なしで復元成功した場合は念のためサーバ状態を取り直す
+      await fetchMe();
+      if (isPremium.value) {
+        emit('success', '✅ 購入を復元しました');
+      } else {
+        emit('error', 'ℹ️ サーバ側にプレミアム情報が見つかりませんでした');
+      }
     } else {
       emit('error', 'ℹ️ 復元可能な購入が見つかりませんでした');
     }
